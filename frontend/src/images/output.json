@@ -1,0 +1,218 @@
+[
+  {
+    "product_name": "Amul Gold Special",
+    "unit": "1 liter",
+    "current_price": 78,
+    "image_url": "https://imgur.com/C3ArotQ.png"
+  },
+  {
+    "product_name": "Amul Cow Milk",
+    "unit": "1 liter",
+    "current_price": 70,
+    "image_url": "https://imgur.com/gNfoZiM.png"
+  },
+  {
+    "product_name": "Cow Curd",
+    "unit": "500g",
+    "current_price": 30,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2021/08/Cow-Curd.png"
+  },
+  {
+    "product_name": "Amul Meetha Dahi",
+    "unit": "400g",
+    "current_price": 30,
+    "image_url": "https://imgur.com/dcsmf8k.jpg"
+  },
+  {
+    "product_name": "Amul Cream Cheese",
+    "unit": "200g",
+    "current_price": 85,
+    "image_url": "https://imgur.com/mIQqwKs.png"
+  },
+  {
+    "product_name": "Amul Masti Dahi",
+    "unit": "500g",
+    "current_price": 35,
+    "image_url": "https://imgur.com/K7t1Zkt.jpg"
+  },
+  {
+    "product_name": "Standardized Milk",
+    "unit": "1 liter",
+    "current_price": 45,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/standardized-milk.jpg"
+  },
+  {
+    "product_name": "Cow Milk",
+    "unit": "1L",
+    "current_price": 45,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2021/08/Cow-Milk-1-1024x1024.png"
+  },
+  {
+    "product_name": "Pure Ghee",
+    "unit": "500g",
+    "current_price": 90,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2021/08/Buffalo-Ghee.png"
+  },
+  {
+    "product_name": "Buffalo Curd",
+    "unit": "500g",
+    "current_price": 35,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2021/08/Buffalo-Curd.png"
+  },
+  {
+    "product_name": "Cow Milk",
+    "unit": "1 liter",
+    "current_price": 50,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/cowmilk.jpg"
+  },
+  {
+    "product_name": "Cremalicious Curd",
+    "unit": "500g",
+    "current_price": 45,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/creamilicious.png"
+  },
+  {
+    "product_name": "Amul Buffalo Milk",
+    "unit": "1 liter",
+    "current_price": 68,
+    "image_url": "https://imgur.com/hYUsyli.png"
+  },
+  {
+    "product_name": "Full Cream Milk",
+    "unit": "1 liter",
+    "current_price": 40,
+    "image_url": "https://i.imgur.com/1ZvP6jI.png"
+  },
+  {
+    "product_name": "Amul Taaza",
+    "unit": "500 ml",
+    "current_price": 37,
+    "image_url": "https://imgur.com/PjKhScV.png"
+  },
+  {
+    "product_name": "Amul Fruit Dahi",
+    "unit": "400g",
+    "current_price": 40,
+    "image_url": "https://imgur.com/LTzCKUb.png"
+  },
+  {
+    "product_name": "Amul Malai Paneer",
+    "unit": "500g",
+    "current_price": 80,
+    "image_url": "https://imgur.com/x1m5jK0.png"
+  },
+  {
+    "product_name": "Amul Gold",
+    "unit": "1 liter",
+    "current_price": 78,
+    "image_url": "https://imgur.com/Kt7jUGg.png"
+  },
+  {
+    "product_name": "A2 Full Cream Milk",
+    "unit": "1 liter",
+    "current_price": 60,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/a2fullcreammilk.jpg"
+  },
+  {
+    "product_name": "A2 Toned Buffalo Milk",
+    "unit": "1L",
+    "current_price": 50,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2022/05/Website-Image-01-1024x1024.png"
+  },
+  {
+    "product_name": "Amul Deshi A2 Cow Milk",
+    "unit": "1 liter",
+    "current_price": 60,
+    "image_url": "https://imgur.com/PyYJPic.png"
+  },
+  {
+    "product_name": "Toned Milk",
+    "unit": "1 liter",
+    "current_price": 35,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/tonemilk.jpg"
+  },
+  {
+    "product_name": "Double Toned Milk",
+    "unit": "1 liter",
+    "current_price": 30,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/dbtoned-milk.jpg"
+  },
+  {
+    "product_name": "Amul Shakti",
+    "unit": "500 ml",
+    "current_price": 30,
+    "image_url": "https://imgur.com/GKEUUJi.jpg"
+  },
+  {
+    "product_name": "Amul Cow Ghee",
+    "unit": "1kg",
+    "current_price": 200,
+    "image_url": "https://imgur.com/Ie2laZH.png"
+  },
+  {
+    "product_name": "Amul Premium Dahi",
+    "unit": "400g",
+    "current_price": 50,
+    "image_url": "https://imgur.com/U74jBj4.jpg"
+  },
+  {
+    "product_name": "Total Curd",
+    "unit": "500g",
+    "current_price": 35,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/totalcurd.jpg"
+  },
+  {
+    "product_name": "Buffalo Milk",
+    "unit": "1L",
+    "current_price": 55,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2022/08/A2-Buffalo-Milk-1024x1024.jpg"
+  },
+  {
+    "product_name": "Amul Diamond",
+    "unit": "1 liter",
+    "current_price": 44,
+    "image_url": "https://imgur.com/BtvOaup.png"
+  },
+  {
+    "product_name": "Amul Slim 'n' Trim",
+    "unit": "1 liter",
+    "current_price": 80,
+    "image_url": "https://imgur.com/dWWwHOm.png"
+  },
+  {
+    "product_name": "Amul Low Fat Dahi",
+    "unit": "500g",
+    "current_price": 70,
+    "image_url": "https://imgur.com/lgzIvfh.jpg"
+  },
+  {
+    "product_name": "Amul Sagar Ghee",
+    "unit": "1kg",
+    "current_price": 300,
+    "image_url": "https://imgur.com/jrA2SVa.jpg"
+  },
+  {
+    "product_name": "Probiotic Curd",
+    "unit": "400g",
+    "current_price": 40,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/probioticcurd.jpg"
+  },
+  {
+    "product_name": "Slim Milk",
+    "unit": "1 liter",
+    "current_price": 55,
+    "image_url": "https://www.heritagefoods.in/static/images/detailslider/mega/slim-milk.jpg"
+  },
+  {
+    "product_name": "Amul Mishti Doi",
+    "unit": "500g",
+    "current_price": 45,
+    "image_url": "https://imgur.com/1ztsxsX.jpg"
+  },
+  {
+    "product_name": "Natural Paneer",
+    "unit": "250g",
+    "current_price": 60,
+    "image_url": "https://sidsfarm.com/wp-content/uploads/2021/06/Natural-Paneer.png"
+  }
+]
