@@ -29,4 +29,8 @@ func RegisterRoutes(router *mux.Router) {
 
 	router.HandleFunc("/bulkcustomers", handlers.CreatebulkCustomers).Methods("POST")
 
+	router.HandleFunc("/customers/{id}/default-order", handlers.CreateDefaultOrder).Methods("POST")
+	router.HandleFunc("/customers/{id}/default-order", handlers.UpdateDefaultOrder).Methods("PUT")
+	router.HandleFunc("/customers/{id}/default-order", handlers.GetDefaultOrder).Methods("GET")
+
 }

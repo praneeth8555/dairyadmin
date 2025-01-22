@@ -3,6 +3,8 @@ package handlers
 import (
 	"backend/config"
 	"backend/models"
+
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -56,7 +58,14 @@ func CreateCustomer(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Customer added successfully!")
 }
 
+
+
 // Update customer details
+
+
+// Update customer details and default order (if provided)
+
+
 func UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userID := params["id"]
@@ -78,6 +87,10 @@ func UpdateCustomer(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintln(w, "Customer updated successfully!")
 }
+
+
+
+
 
 // Delete a customer
 func DeleteCustomer(w http.ResponseWriter, r *http.Request) {
@@ -128,3 +141,152 @@ func CreatebulkCustomers(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Customers added successfully!")
 }
 
+
+
+func CreateDefaultOrder(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	customerID := params["id"]
+
+	var request struct {
+		Products []models.DefaultOrderItem `json:"products"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+	
+	// Create a new default order
+	var orderID string
+	err = config.DB.QueryRow(
+		"INSERT INTO default_orders (user_id, status) VALUES ($1, 'active') RETURNING order_id",
+		customerID,
+	).Scan(&orderID)
+
+	if err != nil {
+		log.Printf("Error creating default order: %v\n", err)
+		http.Error(w, "Failed to create default order", http.StatusInternalServerError)
+		return
+	}
+
+	// Insert products into default_order_items
+	for _, item := range request.Products {
+		_, err := config.DB.Exec(
+			"INSERT INTO default_order_items (order_id, product_id, quantity) VALUES ($1, $2, $3)",
+			orderID, item.ProductID, item.Quantity,
+		)
+		if err != nil {
+			log.Printf("Error adding product to default order: %v\n", err)
+			http.Error(w, "Failed to add products to default order", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	fmt.Fprintln(w, "Default order created successfully!")
+}
+
+func UpdateDefaultOrder(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	customerID := params["id"]
+
+	var request struct {
+		Products []models.DefaultOrderItem `json:"products"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request format", http.StatusBadRequest)
+		return
+	}
+	
+	// Get the customer's existing order ID
+	var orderID string
+	err = config.DB.QueryRow(
+		"SELECT order_id FROM default_orders WHERE user_id = $1", customerID,
+	).Scan(&orderID)
+
+	if err != nil {
+		log.Printf("No default order found for customer: %v\n", err)
+		http.Error(w, "No default order found for this customer", http.StatusNotFound)
+		return
+	}
+
+	// Delete existing order items
+	_, err = config.DB.Exec("DELETE FROM default_order_items WHERE order_id = $1", orderID)
+	if err != nil {
+		log.Printf("Error clearing existing default order items: %v\n", err)
+		http.Error(w, "Failed to update default order", http.StatusInternalServerError)
+		return
+	}
+
+	// Insert updated products into default_order_items
+	for _, item := range request.Products {
+		_, err := config.DB.Exec(
+			"INSERT INTO default_order_items (order_id, product_id, quantity) VALUES ($1, $2, $3)",
+			orderID, item.ProductID, item.Quantity,
+		)
+		if err != nil {
+			log.Printf("Error updating product in default order: %v\n", err)
+			http.Error(w, "Failed to update default order", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	fmt.Fprintln(w, "Default order updated successfully!")
+}
+
+func GetDefaultOrder(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	customerID := params["id"]
+
+	// Get the customer's existing order ID
+	var orderID string
+	err := config.DB.QueryRow(
+		"SELECT order_id FROM default_orders WHERE user_id = $1", customerID,
+	).Scan(&orderID)
+
+	if err == sql.ErrNoRows {
+		
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK) // 200 OK with empty response
+		w.Write([]byte("[]"))
+		return
+	} else if err != nil {
+		log.Printf("ERROR: Failed to check default order for user %s: %v", customerID, err)
+		http.Error(w, "Failed to check default order", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch products associated with this order
+	rows, err := config.DB.Query(`
+		SELECT product_id, quantity FROM default_order_items WHERE order_id = $1
+	`, orderID)
+
+	if err != nil {
+		http.Error(w, "Failed to fetch order products", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var orderItems []models.DefaultOrderItem
+	for rows.Next() {
+		var item models.DefaultOrderItem
+		err := rows.Scan(&item.ProductID, &item.Quantity)
+		if err != nil {
+			http.Error(w, "Error scanning order products", http.StatusInternalServerError)
+			return
+		}
+		orderItems = append(orderItems, item)
+	}
+
+	// Return the default order with product details
+	response := map[string]interface{}{
+		"order_id": orderID,
+		"user_id":  customerID,
+		"products": orderItems,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}

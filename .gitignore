@@ -1,0 +1,27 @@
+# Ignore environment files in both frontend and backend
+
+.env
+
+# Node modules (React frontend)
+frontend/node_modules
+frontend/.next
+frontend/dist
+
+# Go build files (Backend)
+backend/bin
+backend/pkg
+backend/vendor
+backend/go.sum
+backend/go.mod
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+git 

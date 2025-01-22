@@ -47,7 +47,7 @@ func main() {
 	// Wrap the router with CORS middleware
 	handlerWithCORS := enableCORS(router)
 
-	router.PathPrefix("/uploads/").Handler(http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads/"))))
+	
 
 	// Start server
 	port := ":8080"

@@ -39,26 +39,31 @@ package models
 }
 
 // DefaultOrder model
- type DefaultOrder struct {
-	OrderID      string  `json:"order_id"`
-	UserID       string  `json:"user_id"`
-	ProductID    string  `json:"product_id"`
-	Quantity     float64 `json:"quantity"`
-	PriceAtOrder float64 `json:"price_at_order"`
-	Status       string  `json:"status"`
-	CreatedAt    string  `json:"created_at"`
+type DefaultOrder struct {
+	OrderID   string `json:"order_id"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
 }
 
-// OrderModification model
- type OrderModification struct {
+type DefaultOrderItem struct {
+	OrderItemID   string  `json:"order_item_id"`
+	OrderID       string  `json:"order_id"`
+	ProductID     string  `json:"product_id"`
+	Quantity      float64 `json:"quantity"`
+}
+
+type OrderModification struct {
 	ModificationID   string  `json:"modification_id"`
 	OrderID          string  `json:"order_id"`
+	ProductID        string  `json:"product_id"`
 	ModifiedQuantity float64 `json:"modified_quantity"`
 	StartDate        string  `json:"start_date"`
 	EndDate          string  `json:"end_date"`
 	Status           string  `json:"status"`
 	CreatedAt        string  `json:"created_at"`
 }
+
 
 // DailyOrderSummary model
  type DailyOrderSummary struct {
@@ -85,4 +90,10 @@ type Admin struct {
 	AdminID      string `json:"admin_id"`
 	Username     string `json:"username"`
 	PasswordHash string `json:"password_hash"`
+}
+
+type OrderItem struct {
+	ProductID   string  `json:"product_id"`
+	ProductName string  `json:"product_name"`
+	Quantity    float64 `json:"quantity"`
 }

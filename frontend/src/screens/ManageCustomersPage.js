@@ -6,9 +6,9 @@ import {
     Select,
     Grid,
     GridItem,
-    Card,
-    CardBody,
-    CardFooter,
+    // Card,
+    // CardBody,
+    // CardFooter,
     Text,
     Stack,
     Modal,
@@ -21,9 +21,14 @@ import {
     useToast,
     Flex,
     InputGroup,
-    InputLeftElement
+    InputLeftElement,
+    IconButton
 } from "@chakra-ui/react";
-import { FaSearch,FaEdit,FaTrash } from "react-icons/fa";
+import { FaSearch,FaEdit,FaTrash } from "react-icons/fa"
+import "./ManageCustomersPage.css"
+
+import DefaultOrderModal from "./DefaultOrderModal";
+
 const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     const [customers, setCustomers] = useState([]);
     const [newCustomer, setNewCustomer] = useState({
@@ -39,6 +44,12 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     const toast = useToast();
     //const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editCustomer, setEditCustomer] = useState(null);
+    const [products, setProducts] = useState([]);
+    const [isDefaultOrderModalOpen, setIsDefaultOrderModalOpen] = useState(false);
+    const [selectedCustomerId, setSelectedCustomerId] = useState(null);
+    const [selectedDefaultOrder, setSelectedDefaultOrder] = useState([]);
+    const [selectedCustomerDefaultOrder, setSelectedCustomerDefaultOrder] = useState([]);
+    const [flippedCustomerId, setFlippedCustomerId] = useState(null);
 
     const fetchCustomers = useCallback(async () => {
         try {
@@ -50,9 +61,11 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         }
     }, [toast]);
 
+
     useEffect(() => {
         fetchApartments();
         fetchCustomers();
+        
     }, [fetchApartments, fetchCustomers]);
 
     useEffect(() => {
@@ -60,27 +73,60 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             setSelectedApartment(apartments[0].apartment_id);
         }
     }, [apartments, selectedApartment]);
+
+    const fetchDefaultOrder = async (customerId) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/customers/${customerId}/default-order`);
+            
+
+            // ✅ Extract only the products array and set it correctly
+            setSelectedCustomerDefaultOrder(response.data.products || []);
+        } catch (error) {
+            setSelectedCustomerDefaultOrder([]); // Ensure it's an empty array if the fetch fails
+            console.error("Error fetching default order:", error);
+        }
+    };
+
+
     const openEditModal = (customer) => {
         setEditCustomer(customer);
+        fetchDefaultOrder(customer.user_id);
         setIsCustomerModalOpen(true);
     };
 
 
+    
     const updateCustomer = async () => {
         if (!editCustomer.name || !editCustomer.apartment_id || !editCustomer.room_number) {
             toast({ title: "All fields are required", status: "warning" });
             return;
         }
+
+        // Prepare request payload
+        const requestBody = {
+            name: editCustomer.name,
+            apartment_id: editCustomer.apartment_id,
+            room_number: editCustomer.room_number,
+            phone_number: editCustomer.phone_number,
+            email: editCustomer.email,
+            Products: selectedDefaultOrder.map(product => ({  // Include default order
+                product_id: product.product_id,
+                quantity: product.quantity
+            }))
+        };
+        console.log(requestBody)
         try {
-            await axios.put(`http://localhost:8080/customers/${editCustomer.user_id}`, editCustomer);
+            await axios.put(`http://localhost:8080/customers/${editCustomer.user_id}`, requestBody);
             toast({ title: "Customer updated successfully!", status: "success" });
             fetchCustomers();
             setIsCustomerModalOpen(false);
             setEditCustomer(null);
+            setSelectedDefaultOrder([]); // Reset after update
         } catch (error) {
             toast({ title: "Failed to update customer", status: "error" });
         }
     };
+
 
     
     const deleteCustomer = async (customerId) => {
@@ -110,14 +156,33 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             toast({ title: "Please fill in all required fields", status: "warning" });
             return;
         }
+
+        // Create request payload
+        const requestBody = {
+            name: newCustomer.name,
+            apartment_id: newCustomer.apartment_id,
+            room_number: newCustomer.room_number,
+            phone_number: newCustomer.phone_number,
+            email: newCustomer.email,
+        };
+
+        // Only add products if there are any
+        if (newCustomer.products && newCustomer.products.length > 0) {
+            requestBody.products = newCustomer.selectedDefaultOrder.map(product => ({
+                product_id: product.product_id,
+                quantity: product.quantity
+            }));
+        }
+
         try {
-            await axios.post("http://localhost:8080/customers", newCustomer);
+            await axios.post("http://localhost:8080/customers", requestBody);
             setNewCustomer({
                 name: "",
                 apartment_id: "",
                 room_number: "",
                 phone_number: "",
-                email: ""
+                email: "",
+                products: [] // Reset product selection
             });
             fetchCustomers();
             toast({ title: "Customer added!", status: "success" });
@@ -126,6 +191,23 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             toast({ title: "Failed to add customer", status: "error" });
         }
     };
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await axios.get("http://localhost:8080/products");
+                setProducts(response.data);
+            } catch (error) {
+                toast({ title: "Error fetching products", status: "error" });
+            }
+        };
+
+        fetchProducts();
+    }, [toast]);
+    const handleSaveDefaultOrder = (defaultOrder) => {
+        setSelectedDefaultOrder(defaultOrder);
+        setIsDefaultOrderModalOpen(false);
+    };
+
 
     return (
         <Box>
@@ -175,40 +257,84 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             <Grid templateColumns="repeat(auto-fill, minmax(250px, 1fr))" gap={6}>
                 {filteredCustomers.length > 0 ? (
                     filteredCustomers.map((customer) => (
-                        <GridItem key={customer.user_id}>
-                            <Card borderWidth="1px" borderRadius="lg" overflow="hidden">
-                                <CardBody pb="5px">
+                        <GridItem key={customer.user_id} className="card-container" onClick={() => {
+                            setFlippedCustomerId(flippedCustomerId === customer.user_id ? null : customer.user_id);
+                            fetchDefaultOrder(customer.user_id);
+                        }}>
+                            <Box className={`card ${flippedCustomerId === customer.user_id ? "flipped" : ""}`}>
+                                {/* Front Side */}
+                                <Box className="card-front" borderWidth="1px" borderRadius="lg" overflow="hidden" p={4} >
                                     <Stack spacing={1}>
                                         <Text fontWeight="bold">{customer.name}</Text>
                                         <Text>
-                                            Apartment:{" "}
-                                            {apartments.find((a) => a.apartment_id === customer.apartment_id)
-                                                ?.apartment_name || "Unknown"}
+                                            Apartment: {apartments.find((a) => a.apartment_id === customer.apartment_id)?.apartment_name || "Unknown"}
                                         </Text>
                                         <Text><b>Room No:</b> {customer.room_number}</Text>
-                                        <Text><b>Phone:</b>{customer.phone_number}</Text>
+                                        <Text><b>Phone:</b> {customer.phone_number}</Text>
                                         <Text><b>Email:</b> {customer.email}</Text>
+                                        <Flex className="bottom-buttons" gap={2}>
+                                            <IconButton
+                                                size="sm"
+                                                colorScheme="teal"
+                                                icon={<FaEdit />}
+                                                aria-label="Edit"
+                                                onClick={() => openEditModal(customer)}
+                                            />
+                                            <IconButton
+                                                size="sm"
+                                                colorScheme="teal"
+                                                icon={<FaTrash />}
+                                                aria-label="Delete"
+                                                onClick={() => deleteCustomer(customer.user_id)}
+                                            />
+                                        </Flex>
                                     </Stack>
-                                </CardBody>
-                                <CardFooter display="flex" justifyContent="space-between" pt="5px">
-                                    <Button
-                                        size="sm"
-                                        colorScheme="teal"
-                                        leftIcon={<FaEdit />}
-                                        onClick={() => openEditModal(customer)}
-                                    >
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        colorScheme="teal"
-                                        leftIcon={<FaTrash />}
-                                        onClick={() => deleteCustomer(customer.user_id)}
-                                    >
-                                        Delete
-                                    </Button>
-                                </CardFooter>
-                            </Card>
+                                   
+                                        
+                               
+                                </Box>
+
+                                {/* Back Side - Default Order */}
+                                <Box className="card-back" borderWidth="1px" borderRadius="lg" p={4}>
+                                    {/* Sticky Heading */}
+                                    <Text fontWeight="bold" className="sticky-header">
+                                        Default Order
+                                    </Text>
+
+                                    {/* Scrollable Content */}
+                                    <Box className="scrollable-list" justifyItems="center">
+                                        {selectedCustomerDefaultOrder.length > 0 ? (
+                                            <Stack spacing={1}>
+                                                {selectedCustomerDefaultOrder.map((item) => {
+                                                    const product = products.find((p) => p.product_id === item.product_id);
+                                                    return (
+                                                        <Text key={item.product_id}>
+                                                            {product ? `${product.product_name} (${product.unit})` : "Unknown Product"} - {item.quantity}
+                                                        </Text>
+                                                    );
+                                                })}
+                                            </Stack>
+                                        ) : (
+                                            <Box justifyContent="center" justifyItems="center">
+                                                    <Text >No default order items.</Text>
+                                            </Box>
+                                            
+                                        )}
+                                    </Box>
+
+                                    {/* Buttons at the Bottom */}
+                                    <Box className="bottom-buttons">
+                                        <Button size="sm" colorScheme="teal" onClick={() => {
+                                            setSelectedCustomerId(customer.user_id);
+                                            setIsDefaultOrderModalOpen(true);
+                                        }}>
+                                            {selectedCustomerDefaultOrder.length > 0 ? "Edit Default Order" : "Create Default Order"}
+                                        </Button>
+                                    </Box>
+                                </Box>
+
+
+                            </Box>
                         </GridItem>
                     ))
                 ) : (
@@ -216,7 +342,14 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                 )}
             </Grid>
 
+
             {/* Add Customer Modal */}
+            <DefaultOrderModal
+                isOpen={isDefaultOrderModalOpen}
+                onClose={() => setIsDefaultOrderModalOpen(false)}
+                customerId={selectedCustomerId}
+                onSaveDefaultOrder={handleSaveDefaultOrder}
+            />
             <Modal isOpen={isCustomerModalOpen} onClose={() => { setIsCustomerModalOpen(false); setEditCustomer(null); }}>
                 <ModalOverlay />
                 <ModalContent>
@@ -272,6 +405,10 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                                 : setNewCustomer({ ...newCustomer, email: e.target.value })}
                             mb={3}
                         />
+                       
+                       
+
+
 
                         <Button mt={4} colorScheme="green" onClick={editCustomer ? updateCustomer : addCustomer}>
                             {editCustomer ? "Save Changes" : "Add Customer"}
