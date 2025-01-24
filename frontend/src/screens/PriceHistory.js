@@ -13,7 +13,7 @@ import {
     VStack,
 } from "@chakra-ui/react";
 import axios from "axios";
-
+import CONFIG from "../config";
 const PriceHistory = ({ productId, isOpen, onClose }) => {
     const [priceHistory, setPriceHistory] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +22,7 @@ const PriceHistory = ({ productId, isOpen, onClose }) => {
     const fetchPriceHistory = useCallback(async () => {
         try {
             setIsLoading(true);
-            const response = await axios.get(`http://localhost:8080/products/${productId}/price-history`);
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/products/${productId}/price-history`);
             setPriceHistory(response.data || []);
         } catch (error) {
             console.error("Error fetching price history:", error);

@@ -28,7 +28,7 @@ import { FaSearch,FaEdit,FaTrash } from "react-icons/fa"
 import "./ManageCustomersPage.css"
 
 import DefaultOrderModal from "./DefaultOrderModal";
-
+import CONFIG from "../config";
 const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     const [customers, setCustomers] = useState([]);
     const [newCustomer, setNewCustomer] = useState({
@@ -47,13 +47,13 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     const [products, setProducts] = useState([]);
     const [isDefaultOrderModalOpen, setIsDefaultOrderModalOpen] = useState(false);
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
-    const [selectedDefaultOrder, setSelectedDefaultOrder] = useState([]);
+    //const [selectedDefaultOrder, setSelectedDefaultOrder] = useState([]);
     const [selectedCustomerDefaultOrder, setSelectedCustomerDefaultOrder] = useState([]);
     const [flippedCustomerId, setFlippedCustomerId] = useState(null);
 
     const fetchCustomers = useCallback(async () => {
         try {
-            const response = await axios.get("http://localhost:8080/customers");
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/customers`);
             setCustomers(response.data || []);
         } catch (error) {
             setCustomers([]);
@@ -76,7 +76,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
 
     const fetchDefaultOrder = async (customerId) => {
         try {
-            const response = await axios.get(`http://localhost:8080/customers/${customerId}/default-order`);
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`);
             
 
             // ✅ Extract only the products array and set it correctly
@@ -109,19 +109,15 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             room_number: editCustomer.room_number,
             phone_number: editCustomer.phone_number,
             email: editCustomer.email,
-            Products: selectedDefaultOrder.map(product => ({  // Include default order
-                product_id: product.product_id,
-                quantity: product.quantity
-            }))
         };
         console.log(requestBody)
         try {
-            await axios.put(`http://localhost:8080/customers/${editCustomer.user_id}`, requestBody);
+            await axios.put(`${CONFIG.API_BASE_URL}/customers/${editCustomer.user_id}`, requestBody);
             toast({ title: "Customer updated successfully!", status: "success" });
             fetchCustomers();
             setIsCustomerModalOpen(false);
             setEditCustomer(null);
-            setSelectedDefaultOrder([]); // Reset after update
+             // Reset after update
         } catch (error) {
             toast({ title: "Failed to update customer", status: "error" });
         }
@@ -134,7 +130,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         if (!confirmDelete) return;
 
         try {
-            await axios.delete(`http://localhost:8080/customers/${customerId}`);
+            await axios.delete(`${CONFIG.API_BASE_URL}/customers/${customerId}`);
             toast({ title: "Customer deleted successfully!", status: "success" });
             fetchCustomers();
         } catch (error) {
@@ -175,7 +171,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         }
 
         try {
-            await axios.post("http://localhost:8080/customers", requestBody);
+            await axios.post(`${CONFIG.API_BASE_URL}/customers`, requestBody);
             setNewCustomer({
                 name: "",
                 apartment_id: "",
@@ -194,7 +190,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await axios.get("http://localhost:8080/products");
+                const response = await axios.get(`${CONFIG.API_BASE_URL}/products`);
                 setProducts(response.data);
             } catch (error) {
                 toast({ title: "Error fetching products", status: "error" });
@@ -203,10 +199,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
 
         fetchProducts();
     }, [toast]);
-    const handleSaveDefaultOrder = (defaultOrder) => {
-        setSelectedDefaultOrder(defaultOrder);
-        setIsDefaultOrderModalOpen(false);
-    };
+
 
 
     return (
@@ -348,7 +341,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                 isOpen={isDefaultOrderModalOpen}
                 onClose={() => setIsDefaultOrderModalOpen(false)}
                 customerId={selectedCustomerId}
-                onSaveDefaultOrder={handleSaveDefaultOrder}
+                
             />
             <Modal isOpen={isCustomerModalOpen} onClose={() => { setIsCustomerModalOpen(false); setEditCustomer(null); }}>
                 <ModalOverlay />

@@ -8,15 +8,15 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
+	
 )
 
 // CORS Middleware
 func enableCORS(next http.Handler) http.Handler {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers
@@ -51,6 +51,7 @@ func main() {
 
 	// Start server
 	port := ":8080"
-	fmt.Println("🚀 Server running on http://localhost" + port)
+	// fmt.Println("🚀 Server running on http://localhost" + port)
+	fmt.Println("🚀 Server running on http://0.0.0.0" + port)
 	log.Fatal(http.ListenAndServe(port, handlerWithCORS))
 }

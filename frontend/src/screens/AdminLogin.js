@@ -4,6 +4,7 @@ import axios from "axios";
 import CONFIG from '../config';
 
 import backgroundImage from "../images/img2.jpg"
+
 const AdminLogin = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -12,7 +13,7 @@ const AdminLogin = () => {
     //dotenv.config()
     // Dynamically set the API base URL
    
-    console.log("url:", CONFIG.API_BASE_URL)
+    
     const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
@@ -33,6 +34,7 @@ const AdminLogin = () => {
             });
             window.location.href = "/managementpanel";
         } catch (err) {
+            console.log(err)
             setError("Invalid credentials. Please try again.");
             toast({
                 title: "Login Failed",

@@ -32,6 +32,7 @@ import { FaEdit, FaTrash, FaSearch, FaArrowLeft,FaPlus } from "react-icons/fa";
 import { FaMoneyBillTrendUp } from "react-icons/fa6";
 import PriceHistory from "./PriceHistory";
 import { useNavigate } from "react-router-dom";
+import CONFIG from "../config";
 const ProductManagement = () => {
     const navigate=useNavigate()
     const [products, setProducts] = useState([]);
@@ -49,7 +50,7 @@ const ProductManagement = () => {
 
     const fetchProducts = async () => {
         try {
-            const response = await axios.get("http://localhost:8080/products");
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/products`);
             if (Array.isArray(response.data)) {
                 setProducts(response.data);
             }
@@ -114,7 +115,7 @@ const ProductManagement = () => {
 
         try {
             const imageUrl = await postDetails(newProduct.image);
-            await axios.post("http://localhost:8080/products", {
+            await axios.post(`${CONFIG.API_BASE_URL}/products`, {
                 product_name: newProduct.name,
                 unit: newProduct.unit,
                 current_price: parseFloat(newProduct.price),
@@ -153,7 +154,7 @@ const ProductManagement = () => {
                 imageUrl = await postDetails(editProduct.image);
             }
 
-            await axios.put(`http://localhost:8080/products/${editProduct.product_id}`, {
+            await axios.put(`${CONFIG.API_BASE_URL}/products/${editProduct.product_id}`, {
                 product_name: editProduct.product_name,
                 unit: editProduct.unit,
                 current_price: parseFloat(editProduct.current_price),
@@ -178,7 +179,7 @@ const ProductManagement = () => {
         const confirmDelete = window.confirm("Are you sure you want to delete this product?");
         if (confirmDelete) {
             try {
-                await axios.delete(`http://localhost:8080/products/${id}`);
+                await axios.delete(`${CONFIG.API_BASE_URL}/products/${id}`);
                 fetchProducts();
                 toast({
                     title: "Product deleted successfully",

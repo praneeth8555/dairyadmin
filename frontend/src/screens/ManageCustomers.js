@@ -7,7 +7,7 @@ import { Tabs, TabList, TabPanels, Tab, TabPanel, Box, Heading, Button, Table, T
 import { FaTrash ,FaArrowLeft} from "react-icons/fa";
 import ManageCustomersPage from "./ManageCustomersPage";
 import { useNavigate } from "react-router-dom";
-
+import CONFIG from "../config";
 const ManageCustomers = () => {
     const navigate=useNavigate()
     const [apartments, setApartments] = useState([]);
@@ -20,7 +20,7 @@ const ManageCustomers = () => {
    
     const fetchApartments = useCallback(async () => {
         try {
-            const response = await axios.get("http://localhost:8080/apartments");
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/apartments`);
             setApartments(response.data);
            
         } catch (error) {
@@ -33,7 +33,7 @@ const ManageCustomers = () => {
     const addApartment = async () => {
         if (!newApartment) return;
         try {
-            await axios.post("http://localhost:8080/apartments", { apartment_name: newApartment });
+            await axios.post(`${CONFIG.API_BASE_URL}/apartments` , { apartment_name: newApartment });
             setNewApartment("");
             fetchApartments();
             toast({ title: "Apartment added!", status: "success" });
@@ -45,7 +45,7 @@ const ManageCustomers = () => {
 
     const deleteApartment = async (id) => {
         try {
-            await axios.delete(`http://localhost:8080/apartments/${id}`);
+            await axios.delete(`${ CONFIG.API_BASE_URL } /apartments/${id}`);
             fetchApartments();
             toast({ title: "Apartment deleted!", status: "success" });
         } catch (error) {

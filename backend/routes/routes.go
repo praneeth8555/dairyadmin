@@ -2,6 +2,7 @@ package routes
 
 import (
 	"backend/handlers"
+
 	"github.com/gorilla/mux"
 )
 
@@ -32,5 +33,13 @@ func RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/customers/{id}/default-order", handlers.CreateDefaultOrder).Methods("POST")
 	router.HandleFunc("/customers/{id}/default-order", handlers.UpdateDefaultOrder).Methods("PUT")
 	router.HandleFunc("/customers/{id}/default-order", handlers.GetDefaultOrder).Methods("GET")
+
+	router.HandleFunc("/orders", handlers.GetOrders).Methods("GET")       // Fetch orders for a month
+	router.HandleFunc("/orders/modify", handlers.ModifyOrder).Methods("POST")  // Modify an order
+	router.HandleFunc("/orders/pause", handlers.PauseOrder).Methods("POST")    // Pause an order
+	router.HandleFunc("/orders/resume", handlers.ResumeOrder).Methods("POST")
+
+	router.HandleFunc("/daily-summary", handlers.GetDailyOrderSummary).Methods("GET")
+	router.HandleFunc("/daily-totalsummary", handlers.GetDailyTotalSummary).Methods("GET")
 
 }

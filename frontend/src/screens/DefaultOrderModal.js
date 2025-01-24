@@ -21,6 +21,8 @@ import { FaTrash, FaPlus } from "react-icons/fa";
 import axios from "axios";
 import MyComponent from "./MyComponent";
 
+import CONFIG from "../config"; // Assuming API base URL is in config.js
+
 const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
     const [products, setProducts] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState("");
@@ -29,10 +31,11 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
     const [existingOrder, setExistingOrder] = useState(false);
     const toast = useToast();
 
+    // Fetch products
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await axios.get("http://localhost:8080/products");
+                const response = await axios.get(`${CONFIG.API_BASE_URL}/products`);
                 setProducts(response.data);
             } catch (error) {
                 toast({ title: "Error fetching products", status: "error" });
@@ -42,6 +45,7 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
         fetchProducts();
     }, [toast]);
 
+    // Fetch default order for the customer
     useEffect(() => {
         if (!customerId) return;
 
@@ -51,7 +55,9 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
 
         const fetchDefaultOrder = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/customers/${customerId}/default-order`);
+                const response = await axios.get(
+                    `${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`
+                );
                 if (response.data.products && response.data.products.length > 0) {
                     setDefaultOrder(response.data.products);
                     setExistingOrder(true);
@@ -66,8 +72,9 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
         };
 
         fetchDefaultOrder();
-    }, [customerId, setDefaultOrder]);
+    }, [customerId]);
 
+    // Add product to default order
     const addProductToOrder = () => {
         if (!selectedProduct) {
             toast({ title: "Please select a product", status: "warning" });
@@ -75,7 +82,7 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
         }
 
         if (!Array.isArray(products) || products.length === 0) {
-            toast({ title: "Product list is empty or not loaded. Please try again later.", status: "error" });
+            toast({ title: "Product list is empty. Please try again later.", status: "error" });
             return;
         }
 
@@ -96,23 +103,27 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
             return;
         }
 
-        setDefaultOrder((prevOrder) => [...prevOrder, { ...productDetails, quantity: selectedQuantity }]);
+        setDefaultOrder((prevOrder) => [
+            ...prevOrder,
+            { ...productDetails, quantity: selectedQuantity },
+        ]);
         setSelectedProduct("");
         setSelectedQuantity(1);
     };
 
+    // Remove product from default order
     const removeProduct = (productId) => {
         setDefaultOrder(defaultOrder.filter((product) => product.product_id !== productId));
     };
 
+    // Save default order (create/update)
     const saveDefaultOrder = async () => {
         if (defaultOrder.length === 0) {
             toast({ title: "No products selected", status: "warning" });
             return;
         }
-        console.log(defaultOrder)
+
         const payload = {
-            
             products: defaultOrder.map((product) => ({
                 product_id: product.product_id,
                 quantity: product.quantity,
@@ -121,11 +132,10 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
 
         try {
             if (existingOrder) {
-                await axios.put(`http://localhost:8080/customers/${customerId}/default-order`, payload);
-                
+                await axios.put(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`, payload);
                 toast({ title: "Default order updated successfully!", status: "success" });
             } else {
-                await axios.post(`http://localhost:8080/customers/${customerId}/default-order`, payload);
+                await axios.post(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`, payload);
                 toast({ title: "Default order created successfully!", status: "success" });
                 setExistingOrder(true);
             }
@@ -135,6 +145,7 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
             toast({ title: "Failed to save default order", status: "error" });
         }
     };
+
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} size="lg">

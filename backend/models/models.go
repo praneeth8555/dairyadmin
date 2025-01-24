@@ -53,16 +53,17 @@ type DefaultOrderItem struct {
 	Quantity      float64 `json:"quantity"`
 }
 
-type OrderModification struct {
+type OrderModification struct { 
 	ModificationID   string  `json:"modification_id"`
-	OrderID          string  `json:"order_id"`
+	UserID           string  `json:"user_id"`  
 	ProductID        string  `json:"product_id"`
 	ModifiedQuantity float64 `json:"modified_quantity"`
 	StartDate        string  `json:"start_date"`
 	EndDate          string  `json:"end_date"`
-	Status           string  `json:"status"`
+	OrderID       string  `json:"order_id"`
 	CreatedAt        string  `json:"created_at"`
 }
+
 
 
 // DailyOrderSummary model
@@ -92,8 +93,3 @@ type Admin struct {
 	PasswordHash string `json:"password_hash"`
 }
 
-type OrderItem struct {
-	ProductID   string  `json:"product_id"`
-	ProductName string  `json:"product_name"`
-	Quantity    float64 `json:"quantity"`
-}
