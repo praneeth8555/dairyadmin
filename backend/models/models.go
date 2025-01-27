@@ -14,7 +14,8 @@ package models
 	ApartmentID string `json:"apartment_id"`
 	RoomNumber  string `json:"room_number"`
 	PhoneNumber string `json:"phone_number"`
-	Email       string `json:"email,omitempty"`
+	Email       string `json:"email,omitempty"` 
+	PriorityOrder int    `json:"priority_order"`
 	CreatedAt   string `json:"created_at"`
 }
 
@@ -26,6 +27,7 @@ package models
 	CurrentPrice float64 `json:"current_price"`
 	CreatedAt   string  `json:"created_at"`
 	ImageURL    string  `json:"image_url"`
+	Acronym     string 	`json:"acronym"`
 }
 
 // ProductPriceHistory model
@@ -48,9 +50,10 @@ type DefaultOrder struct {
 
 type DefaultOrderItem struct {
 	OrderItemID   string  `json:"order_item_id"`
-	OrderID       string  `json:"order_id"`
+	// OrderID       string  `json:"order_id"`
 	ProductID     string  `json:"product_id"`
 	Quantity      float64 `json:"quantity"`
+	UserID    	string `json:"user_id"`
 }
 
 type OrderModification struct { 

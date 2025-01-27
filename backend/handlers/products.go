@@ -3,8 +3,10 @@ package handlers
 import (
 	"backend/config"
 	"backend/models"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -13,7 +15,7 @@ import (
 
 // Get all products
 func GetProducts(w http.ResponseWriter, r *http.Request) {
-	rows, err := config.DB.Query("SELECT product_id, product_name, unit, current_price, image_url FROM products")
+	rows, err := config.DB.Query("SELECT product_id, product_name, unit, current_price, image_url,acronym FROM products")
 	if err != nil {
 		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
 		return
@@ -23,7 +25,7 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 	var products []models.Product
 	for rows.Next() {
 		var product models.Product
-		err := rows.Scan(&product.ProductID, &product.ProductName, &product.Unit, &product.CurrentPrice, &product.ImageURL)
+		err := rows.Scan(&product.ProductID, &product.ProductName, &product.Unit, &product.CurrentPrice, &product.ImageURL,&product.Acronym)
 		if err != nil {
 			http.Error(w, "Error scanning products", http.StatusInternalServerError)
 			return
@@ -41,41 +43,50 @@ func GetProducts(w http.ResponseWriter, r *http.Request) {
 func CreateProduct(w http.ResponseWriter, r *http.Request) {
     var product models.Product
     
+    // Log the incoming request method and endpoint
+  //  fmt.Printf("[DEBUG] Received request to CreateProduct - Method: %s\n", r.Method)
+    
     // Log the incoming request body
-    fmt.Println("Incoming request body:")
+    body, _ := io.ReadAll(r.Body)
+ //   fmt.Printf("[DEBUG] Raw Request Body: %s\n", string(body))
+ //   
+    // Reset the request body for decoding
+    r.Body = io.NopCloser(bytes.NewBuffer(body))
+    
+    // Decode JSON request body
     decoder := json.NewDecoder(r.Body)
     err := decoder.Decode(&product)
     if err != nil {
-        fmt.Println("Error decoding JSON:", err)
+       // fmt.Printf("[ERROR] Error decoding JSON: %v\n", err)
         http.Error(w, "Invalid request format", http.StatusBadRequest)
         return
     }
-
+    
     // Debug log the parsed product
-    fmt.Printf("Received product: %+v\n", product)
-
+   // fmt.Printf("[DEBUG] Parsed Product: %+v\n", product)
+    
     // Check if the image_url is empty or invalid
     if product.ImageURL == "" {
-        fmt.Println("Error: Image URL is empty")
+       // fmt.Println("[ERROR] Image URL is missing in the request")
         http.Error(w, "Image URL is required", http.StatusBadRequest)
         return
     }
-
+    
     // Log the image URL to ensure it is being received correctly
-    fmt.Println("Image URL:", product.ImageURL)
-
+   // fmt.Printf("[DEBUG] Image URL received: %s\n", product.ImageURL)
+    
     // Insert into database
-    _, err = config.DB.Exec("INSERT INTO products (product_id, product_name, unit, current_price, image_url) VALUES (gen_random_uuid(), $1, $2, $3, $4)",
-        product.ProductName, product.Unit, product.CurrentPrice, product.ImageURL)
+    _, err = config.DB.Exec("INSERT INTO products (product_id, product_name, unit, current_price, image_url, acronym) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
+        product.ProductName, product.Unit, product.CurrentPrice, product.ImageURL, product.Acronym)
+    
     if err != nil {
-        fmt.Println("Error inserting into database:", err)
+     //   fmt.Printf("[ERROR] Failed to execute database insert query: %v\n", err)
         http.Error(w, "Failed to add product", http.StatusInternalServerError)
         return
     }
-
-    // Log success
-    fmt.Println("Product added successfully with image URL:", product.ImageURL)
-
+    
+   // fmt.Println("[INFO] Product added successfully!")
+    
     // Send response
     w.WriteHeader(http.StatusCreated)
     fmt.Fprintln(w, "Product added successfully!")
@@ -96,7 +107,8 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		Unit          string  `json:"unit"`
 		CurrentPrice  float64 `json:"current_price"`
 		ImageURL      string  `json:"image_url"`
-		EffectiveFrom string  `json:"effective_from"` // Admin provides this date
+		EffectiveFrom string  `json:"effective_from"`
+		Acronym   string  `json:"acronym"`// Admin provides this date
 	}
 	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
@@ -130,10 +142,10 @@ func UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	// Update the product in the products table
 	query := `
 		UPDATE products
-		SET product_name = $1, unit = $2, current_price = $3, image_url = $4
-		WHERE product_id = $5
+		SET product_name = $1, unit = $2, current_price = $3, image_url = $4 ,acronym =$5
+		WHERE product_id = $6
 	`
-	_, err = config.DB.Exec(query, requestData.ProductName, requestData.Unit, requestData.CurrentPrice, requestData.ImageURL, productID)
+	_, err = config.DB.Exec(query, requestData.ProductName, requestData.Unit, requestData.CurrentPrice, requestData.ImageURL,requestData.Acronym, productID)
 	if err != nil {
 		log.Printf("Error updating product in database: %v\n", err)
 		http.Error(w, "Failed to update product", http.StatusInternalServerError)

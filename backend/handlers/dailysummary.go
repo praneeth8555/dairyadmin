@@ -19,9 +19,12 @@ func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch users in the apartment
+	// Fetch users in the apartment ordered by priority_order ASC
 	userRows, err := config.DB.Query(`
-		SELECT user_id, name, room_number FROM users WHERE apartment_id = $1
+		SELECT user_id, name, room_number, priority_order 
+		FROM users 
+		WHERE apartment_id = $1 
+		ORDER BY priority_order ASC
 	`, apartmentID)
 	if err != nil {
 		log.Printf("Error fetching users: %v\n", err)
@@ -35,7 +38,8 @@ func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
 	// Iterate through users
 	for userRows.Next() {
 		var userID, name, roomNumber string
-		err := userRows.Scan(&userID, &name, &roomNumber)
+		var priorityOrder int
+		err := userRows.Scan(&userID, &name, &roomNumber, &priorityOrder)
 		if err != nil {
 			http.Error(w, "Error scanning users", http.StatusInternalServerError)
 			return
@@ -54,7 +58,8 @@ func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
 
 		if err == nil { // If a modified order exists, fetch products from modifications
 			modRows, err := config.DB.Query(`
-				SELECT product_id, modified_quantity FROM order_modifications
+				SELECT product_id, modified_quantity 
+				FROM order_modifications
 				WHERE order_id = $1;
 			`, orderID)
 
@@ -82,8 +87,9 @@ func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
 			}
 		} else { // If no modifications, fetch default orders
 			defaultRows, err := config.DB.Query(`
-				SELECT product_id, quantity FROM default_order_items
-				WHERE order_id IN (SELECT order_id FROM default_orders WHERE user_id = $1)
+				SELECT product_id, quantity 
+				FROM default_order_items
+				WHERE user_id = $1
 			`, userID)
 
 			if err != nil {
@@ -109,10 +115,11 @@ func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
 
 		// Add user and orders to response
 		userOrders = append(userOrders, map[string]interface{}{
-			"user_id":     userID,
-			"name":        name,
-			"room_number": roomNumber,
-			"orders":      userOrderItems,
+			"user_id":       userID,
+			"name":          name,
+			"room_number":   roomNumber,
+			"priority_order": priorityOrder, // Including priority order in response
+			"orders":        userOrderItems,
 		})
 	}
 
@@ -218,7 +225,7 @@ func GetDailyTotalSummary(w http.ResponseWriter, r *http.Request) {
 		defaultRows, err := config.DB.Query(`
 			SELECT product_id, SUM(quantity)
 			FROM default_order_items
-			WHERE order_id IN (SELECT order_id FROM default_orders WHERE user_id = $1)
+			WHERE user_id = $1
 			AND product_id NOT IN (
 				SELECT DISTINCT product_id FROM order_modifications WHERE user_id = $1 AND start_date <= $2 AND end_date >= $2
 			)

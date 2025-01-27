@@ -23,7 +23,9 @@ import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import EditOrderModal from "./EditOrderModal";
 import EditOrderForDateModal from "./EditOrderForDateModal";
+import EditPauseModal from "./EditPauseModal";
 import CONFIG from "../config";
+import CreatableSelect from 'react-select/creatable';
 const OrdersPage = () => {
     const navigate = useNavigate()
     const [apartments, setApartments] = useState([]);
@@ -36,7 +38,7 @@ const OrdersPage = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
+    const [isPauseModalOpen, setIsPauseModalOpen] = useState(false);
     const [isEditForDateModalOpen, setIsEditForDateModalOpen] = useState(false);
     const [editOrderDate, setEditOrderDate] = useState(null);
     const [editOrderProducts, setEditOrderProducts] = useState([]);
@@ -59,9 +61,9 @@ const OrdersPage = () => {
 
         const fetchCustomers = async () => {
             try {
-                const response = await axios.get(`${CONFIG.API_BASE_URL}/customers`);
+                const response = await axios.get(`${CONFIG.API_BASE_URL}/apartcustomers?apartment_id=${selectedApartment.value}`
+);
                 const filteredCustomers = response.data
-                    .filter(cust => cust.apartment_id === selectedApartment.value)
                     .map(cust => ({ value: cust.user_id, label: `${cust.name}(Room ${cust.room_number})` }));
                 setCustomers(filteredCustomers);
             } catch (error) {
@@ -154,6 +156,14 @@ const OrdersPage = () => {
         setIsEditModalOpen(false);
     };
 
+    const handleOpenPauseModal = () => {
+        setIsPauseModalOpen(true);
+    };
+
+    const handleClosePauseModal = () => {
+        setIsPauseModalOpen(false);
+    };
+
     const handleOpenEditForDateModal = (orderDate, orders) => {
         console.log("orde",orders)
         console.log("orda",orderDate)
@@ -238,14 +248,20 @@ const OrdersPage = () => {
                     />
                 </Box>
                 <Box flex={1} zIndex="997">
-                    <Select
-                        placeholder="Select Year"
-                        options={[2023, 2024, 2025].map(y => ({ value: y.toString(), label: y.toString() }))}
+                    <CreatableSelect
+                        placeholder="Select or Add Year"
+                        options={[2024, 2025, 2026,2027].map(y => ({ value: y.toString(), label: y.toString() }))}
                         value={year}
                         onChange={setYear}
+                        onCreateOption={(inputValue) => {
+                            // Convert input value to an object and update the state
+                            const newYear = { value: inputValue, label: inputValue };
+                            setYear(newYear);
+                        }}
                         styles={{
                             menuPortal: base => ({ ...base, zIndex: 9999 }), // High z-index for dropdown
                         }}
+                        menuPortalTarget={document.body} // Ensures the dropdown doesn't get clipped
                     />
                 </Box>
                 <Button colorScheme="blue" onClick={fetchOrders} isLoading={loading}>
@@ -323,8 +339,9 @@ const OrdersPage = () => {
                         </Table>
 
                     </Box>
-                        <Flex justify="end" mt={4}>
+                        
                             {orders.length > 0 && (
+                            <Flex justify="end" mt={4} gap={2}>
                                 <Button
                                     colorScheme="blue"
                                     size="md"
@@ -332,14 +349,28 @@ const OrdersPage = () => {
                                 >
                                     Modify Range
                                 </Button>
+                                 <Button
+                                    colorScheme="blue"
+                                    size="md"
+                                    onClick={handleOpenPauseModal}
+                                >
+                                    Pause/Resume Range
+                                </Button>
+                            </Flex>
                             )}
-                        </Flex>
+                        
 
                 </Box>
             )}
              <EditOrderModal
                 isOpen={isEditModalOpen}
                 onClose={handleCloseEditModal}
+                customerId={selectedCustomer?.value}
+                fetchOrders={fetchOrders}
+            />
+            <EditPauseModal
+                isOpen={isPauseModalOpen}
+                onClose={handleClosePauseModal}
                 customerId={selectedCustomer?.value}
                 fetchOrders={fetchOrders}
             />

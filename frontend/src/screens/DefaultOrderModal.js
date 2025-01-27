@@ -16,6 +16,11 @@ import {
     Td,
     IconButton,
     useToast,
+    NumberInput,
+    NumberInputField,
+    NumberInputStepper,
+    NumberIncrementStepper,
+    NumberDecrementStepper,
 } from "@chakra-ui/react";
 import { FaTrash, FaPlus } from "react-icons/fa";
 import axios from "axios";
@@ -139,7 +144,12 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                 toast({ title: "Default order created successfully!", status: "success" });
                 setExistingOrder(true);
             }
-
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`);
+            if (response.data.products && response.data.products.length > 0) {
+                setDefaultOrder(response.data.products);
+            } else {
+                setDefaultOrder([]);
+            }
             onClose();
         } catch (error) {
             toast({ title: "Failed to save default order", status: "error" });
@@ -166,36 +176,74 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                     <Button leftIcon={<FaPlus />} colorScheme="green" mt={2} onClick={addProductToOrder}>
                         Add Product
                     </Button>
-
                     {Array.isArray(defaultOrder) && defaultOrder.length > 0 && (
-                        <Table variant="simple" mt={4}>
-                            <Thead>
-                                <Tr>
-                                    <Th>Product</Th>
-                                    <Th>Quantity</Th>
-                                    <Th>Action</Th>
-                                </Tr>
-                            </Thead>
-                            <Tbody>
-                                {defaultOrder.map((orderItem) => {
-                                    const product = products.find((p) => p.product_id === orderItem.product_id);
-                                    return (
-                                        <Tr key={orderItem.product_id}>
-                                            <Td>{product ? product.product_name +" ("+product.unit+")": "Unknown Product"}</Td>
-                                            <Td>{orderItem.quantity}</Td>
-                                            <Td>
-                                                <IconButton
-                                                    icon={<FaTrash />}
-                                                    colorScheme="red"
-                                                    onClick={() => removeProduct(orderItem.product_id)}
-                                                />
-                                            </Td>
-                                        </Tr>
-                                    );
-                                })}
-                            </Tbody>
-                        </Table>
+                        <div style={{ maxHeight: "300px", overflowY: "auto", marginTop: "16px" }}>
+                            <Table variant="simple">
+                                <Thead>
+                                    <Tr>
+                                        <Th>Product Image</Th>
+                                        <Th>Product</Th>
+                                        <Th>Quantity</Th>
+                                        <Th>Action</Th>
+                                    </Tr>
+                                </Thead>
+                                <Tbody>
+                                    {defaultOrder.map((orderItem) => {
+                                        const product = products.find((p) => p.product_id === orderItem.product_id);
+                                        return (
+                                            <Tr key={orderItem.product_id}>
+                                                <Td>
+                                                    {product && product.image_url ? (
+                                                        <img
+                                                            src={product.image_url}
+                                                            alt={product.name || "Product Image"}
+                                                            style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "8px" }}
+                                                        />
+                                                    ) : (
+                                                        "Error loading"
+                                                    )}
+                                                </Td>
+
+                                                <Td>{product ? `${product.product_name} (${product.unit})` : "Unknown Product"}</Td>
+
+                                                <Td>
+                                                    <NumberInput
+                                                        min={1}
+                                                        max={100}
+                                                        value={orderItem.quantity}
+                                                        onChange={(valueString, valueNumber) =>
+                                                            setDefaultOrder(prev =>
+                                                                prev.map(p =>
+                                                                    p.product_id === product.product_id
+                                                                        ? { ...p, quantity: valueNumber }
+                                                                        : p
+                                                                )
+                                                            )
+                                                        }
+                                                    >
+                                                        <NumberInputField />
+                                                        <NumberInputStepper>
+                                                            <NumberIncrementStepper />
+                                                            <NumberDecrementStepper />
+                                                        </NumberInputStepper>
+                                                    </NumberInput>
+                                                </Td>
+
+                                                <Td>
+                                                    <IconButton
+                                                        icon={<FaTrash />}
+                                                        colorScheme="red"
+                                                        onClick={() => removeProduct(orderItem.product_id)}
+                                                    />
+                                                </Td>
+                                            </Tr>
+                                        );
+                                    })}
+                                </Tbody>
+                            </Table>
+                        </div>
                     )}
+
                 </ModalBody>
 
                 <ModalFooter>

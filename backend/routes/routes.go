@@ -24,8 +24,11 @@ func RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/apartments/{id}", handlers.DeleteApartment).Methods("DELETE")
 
 	router.HandleFunc("/customers", handlers.GetCustomers).Methods("GET")
+	router.HandleFunc("/apartcustomers", handlers.GetApartCustomers).Methods("GET")
 	router.HandleFunc("/customers", handlers.CreateCustomer).Methods("POST")
 	router.HandleFunc("/customers/{id}", handlers.UpdateCustomer).Methods("PUT")
+	router.HandleFunc("/update-priorities", handlers.UpdateCustomerPriorities).Methods("PUT")
+
 	router.HandleFunc("/customers/{id}", handlers.DeleteCustomer).Methods("DELETE")
 
 	router.HandleFunc("/bulkcustomers", handlers.CreatebulkCustomers).Methods("POST")
@@ -41,5 +44,9 @@ func RegisterRoutes(router *mux.Router) {
 
 	router.HandleFunc("/daily-summary", handlers.GetDailyOrderSummary).Methods("GET")
 	router.HandleFunc("/daily-totalsummary", handlers.GetDailyTotalSummary).Methods("GET")
+
+	router.HandleFunc("/monthly-bill", handlers.GetMonthlyBill).Methods("GET")
+	
+	router.HandleFunc("/ordermodificationsclear", handlers.ClearExpiredOrderModifications).Methods("DELETE")
 
 }

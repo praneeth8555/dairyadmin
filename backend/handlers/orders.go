@@ -31,9 +31,7 @@ func GetOrders(w http.ResponseWriter, r *http.Request) {
 	defaultOrdersQuery := `
 		SELECT product_id, quantity
 		FROM default_order_items
-		WHERE order_id IN (
-			SELECT order_id FROM default_orders WHERE user_id = $1
-		)
+		WHERE user_id = $1
 	`
 	rows, err := config.DB.Query(defaultOrdersQuery, customerID)
 	if err != nil {
@@ -182,7 +180,7 @@ func PauseOrder(w http.ResponseWriter, r *http.Request) {
 	var productID string
 	err = config.DB.QueryRow(`
 		SELECT product_id FROM default_order_items
-		WHERE order_id = (SELECT order_id FROM default_orders WHERE user_id = $1)
+		WHERE user_id = $1
 		LIMIT 1
 	`, request.UserID).Scan(&productID)
 
@@ -225,7 +223,7 @@ func ResumeOrder(w http.ResponseWriter, r *http.Request) {
 	// Fetch Default Order Items for the User
 	rows, err := config.DB.Query(`
 		SELECT product_id, quantity FROM default_order_items
-		WHERE order_id IN (SELECT order_id FROM default_orders WHERE user_id = $1)
+		WHERE user_id = $1
 	`, request.UserID)
 
 	if err != nil {
@@ -265,4 +263,44 @@ func ResumeOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, "Order resumed successfully!")
+}
+
+
+// ClearExpiredOrderModifications deletes records where end_date < sent_date
+func ClearExpiredOrderModifications(w http.ResponseWriter, r *http.Request) {
+	// Ensure it's a DELETE request
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get the 'date' parameter from the query string
+	sentDate := r.URL.Query().Get("date")
+
+	if sentDate == "" {
+		http.Error(w, `{"error": "Missing required date parameter"}`, http.StatusBadRequest)
+		return
+	}
+
+	// Prepare the delete query
+	query := `DELETE FROM order_modifications WHERE end_date < $1`
+	result, err := config.DB.Exec(query, sentDate)
+
+	if err != nil {
+		log.Printf("Error deleting expired order modifications: %v\n", err)
+		http.Error(w, `{"error": "Failed to delete expired records"}`, http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+
+	// Create JSON response
+	response := map[string]interface{}{
+		"message":       "Expired order modifications deleted successfully",
+		"rows_affected": rowsAffected,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }

@@ -42,7 +42,7 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request format", http.StatusBadRequest)
 		return
 	}
-	fmt.Printf("Login attempt - Username: %s, Password: %s\n", loginData.Username, loginData.Password)
+	//fmt.Printf("Login attempt - Username: %s, Password: %s\n", loginData.Username, loginData.Password)
 
 	// Get admin from DB
 	var admin models.Admin
@@ -52,12 +52,12 @@ func AdminLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid username", http.StatusUnauthorized)
 		return
 	}
-	fmt.Printf("Fetched admin from DB - AdminID: %s, Username: %s, PasswordHash: %s\n", admin.AdminID, admin.Username, admin.PasswordHash)
+	//fmt.Printf("Fetched admin from DB - AdminID: %s, Username: %s, PasswordHash: %s\n", admin.AdminID, admin.Username, admin.PasswordHash)
 
 	// Compare stored hash with entered password
 	err = bcrypt.CompareHashAndPassword([]byte(admin.PasswordHash), []byte(loginData.Password))
 	if err != nil {
-		fmt.Println("❌ Password does NOT match!")
+		//fmt.Println("❌ Password does NOT match!")
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
 	}

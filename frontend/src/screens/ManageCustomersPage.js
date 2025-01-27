@@ -11,25 +11,30 @@ import {
     // CardFooter,
     Text,
     Stack,
-    Modal,
-    ModalOverlay,
-    ModalContent,
-    ModalHeader,
-    ModalBody,
-    ModalCloseButton,
+    // Modal,
+    // ModalOverlay,
+    // ModalContent,
+    // ModalHeader,
+    // ModalBody,
+    // ModalCloseButton,
     Input,
     useToast,
     Flex,
     InputGroup,
     InputLeftElement,
-    IconButton
-} from "@chakra-ui/react";
-import { FaSearch,FaEdit,FaTrash } from "react-icons/fa"
-import "./ManageCustomersPage.css"
+    IconButton,
+    useDisclosure,
+    Tooltip,
+    VStack
 
+} from "@chakra-ui/react";
+import { FaSearch, FaEdit, FaTrash, FaPhone, FaEnvelope, FaHouseUser } from "react-icons/fa"
+import "./ManageCustomersPage.css"
+import { PiBuildingApartmentFill } from "react-icons/pi";
 import DefaultOrderModal from "./DefaultOrderModal";
 import CONFIG from "../config";
-const ManageCustomersPage = ({ apartments, fetchApartments }) => {
+import CustomerDrawer from "./CustomerDrawer";
+const ManageCustomersPage = ({ apartments }) => {
     const [customers, setCustomers] = useState([]);
     const [newCustomer, setNewCustomer] = useState({
         name: "",
@@ -38,7 +43,7 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         phone_number: "",
         email: ""
     });
-    const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+    // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [selectedApartment, setSelectedApartment] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
     const toast = useToast();
@@ -50,8 +55,10 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
     //const [selectedDefaultOrder, setSelectedDefaultOrder] = useState([]);
     const [selectedCustomerDefaultOrder, setSelectedCustomerDefaultOrder] = useState([]);
     const [flippedCustomerId, setFlippedCustomerId] = useState(null);
+    const { isOpen, onOpen, onClose } = useDisclosure();
 
-    const fetchCustomers = useCallback(async () => {
+
+    const fetchCustomers = useCallback(async () => {    
         try {
             const response = await axios.get(`${CONFIG.API_BASE_URL}/customers`);
             setCustomers(response.data || []);
@@ -59,25 +66,32 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
             setCustomers([]);
             toast({ title: "Error fetching customers", status: "error" });
         }
-    }, [toast]);
-
-
-    useEffect(() => {
-        fetchApartments();
-        fetchCustomers();
-        
-    }, [fetchApartments, fetchCustomers]);
+    }, [toast]); 
 
     useEffect(() => {
         if (apartments?.length > 0 && !selectedApartment) {
             setSelectedApartment(apartments[0].apartment_id);
         }
-    }, [apartments, selectedApartment]);
+        fetchCustomers();
+    }, [apartments,selectedApartment,fetchCustomers]);
+
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                const response = await axios.get(`${CONFIG.API_BASE_URL}/products`);
+                setProducts(response.data);
+            } catch (error) {
+                toast({ title: "Error fetching products", status: "error" });
+            }
+        };
+
+        fetchProducts();
+    }, [toast]);
 
     const fetchDefaultOrder = async (customerId) => {
         try {
             const response = await axios.get(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`);
-            
+
 
             // ✅ Extract only the products array and set it correctly
             setSelectedCustomerDefaultOrder(response.data.products || []);
@@ -87,15 +101,6 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         }
     };
 
-
-    const openEditModal = (customer) => {
-        setEditCustomer(customer);
-        fetchDefaultOrder(customer.user_id);
-        setIsCustomerModalOpen(true);
-    };
-
-
-    
     const updateCustomer = async () => {
         if (!editCustomer.name || !editCustomer.apartment_id || !editCustomer.room_number) {
             toast({ title: "All fields are required", status: "warning" });
@@ -114,17 +119,18 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         try {
             await axios.put(`${CONFIG.API_BASE_URL}/customers/${editCustomer.user_id}`, requestBody);
             toast({ title: "Customer updated successfully!", status: "success" });
+            onClose();
             fetchCustomers();
-            setIsCustomerModalOpen(false);
+            // setIsCustomerModalOpen(false);
             setEditCustomer(null);
-             // Reset after update
+            // Reset after update
         } catch (error) {
             toast({ title: "Failed to update customer", status: "error" });
         }
     };
 
 
-    
+
     const deleteCustomer = async (customerId) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this customer?");
         if (!confirmDelete) return;
@@ -138,16 +144,9 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
         }
     };
 
-    const filteredCustomers = customers.filter((customer) => {
-        return (
-            (!selectedApartment || customer.apartment_id === selectedApartment) &&
-            (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.phone_number.includes(searchTerm) ||
-                customer.room_number.includes(searchTerm))
-        );
-    });
 
     const addCustomer = async () => {
+        
         if (!newCustomer.name || !newCustomer.apartment_id || !newCustomer.room_number) {
             toast({ title: "Please fill in all required fields", status: "warning" });
             return;
@@ -178,35 +177,34 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                 room_number: "",
                 phone_number: "",
                 email: "",
-                products: [] // Reset product selection
+               
             });
+            onClose();
             fetchCustomers();
             toast({ title: "Customer added!", status: "success" });
-            setIsCustomerModalOpen(false);
+            // setIsCustomerModalOpen(false);
         } catch (error) {
             toast({ title: "Failed to add customer", status: "error" });
         }
     };
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const response = await axios.get(`${CONFIG.API_BASE_URL}/products`);
-                setProducts(response.data);
-            } catch (error) {
-                toast({ title: "Error fetching products", status: "error" });
-            }
-        };
 
-        fetchProducts();
-    }, [toast]);
-
-
+    const filteredCustomers = customers.filter((customer) => {
+        return (
+            (!selectedApartment || customer.apartment_id === selectedApartment) &&
+            (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                customer.phone_number.includes(searchTerm) ||
+                customer.room_number.includes(searchTerm))
+        );
+    });
 
     return (
         <Box>
             {/* Add Customer Button */}
             <Flex justify="flex-end" mb={4}>
-                <Button colorScheme="green" onClick={() => setIsCustomerModalOpen(true)}>
+                <Button colorScheme="green"
+                //  onClick={() => setIsCustomerModalOpen(true)}
+                    onClick={() => { setEditCustomer(null); onOpen(); }}
+                 >
                     Add Customer
                 </Button>
             </Flex>
@@ -217,7 +215,14 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                 <Select
                     //placeholder="Filter by Apartment"
                     value={selectedApartment}
-                    onChange={(e) => setSelectedApartment(e.target.value)}
+                    onChange={(e) => {
+                        const selectedApartmentId = e.target.value;
+                        setSelectedApartment(selectedApartmentId); // ✅ Updates selectedApartment
+                        setNewCustomer((prev) => ({
+                            ...prev, // ✅ Keeps existing values
+                            apartment_id: selectedApartmentId, // ✅ Updates apartment_id in newCustomer
+                        }));
+                    }}
                     maxWidth="200px"
                     size="md"
                     borderColor="teal.500"
@@ -258,66 +263,131 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                                 {/* Front Side */}
                                 <Box className="card-front" borderWidth="1px" borderRadius="lg" overflow="hidden" p={4} >
                                     <Stack spacing={1}>
-                                        <Text fontWeight="bold">{customer.name}</Text>
-                                        <Text>
-                                            Apartment: {apartments.find((a) => a.apartment_id === customer.apartment_id)?.apartment_name || "Unknown"}
+                                        <Text fontWeight="bold" fontSize="16px" fontStyle="italic" textAlign="center" >{customer.name}</Text>
+                                        <Box
+                                            borderBottom="1px dashed gray"  // Dotted separator
+                                            width="100%"
+                                            my={2} // Margin for spacing
+                                        />
+                                        
+                                        <Text display="flex" alignItems="#center" gap="8px" fontWeight="500" overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap" fontStyle="italic">
+                                            <FaHouseUser style={{ color: "#71717a" }} />
+                                            <span>{customer.room_number}</span>
                                         </Text>
-                                        <Text><b>Room No:</b> {customer.room_number}</Text>
-                                        <Text><b>Phone:</b> {customer.phone_number}</Text>
-                                        <Text><b>Email:</b> {customer.email}</Text>
-                                        <Flex className="bottom-buttons" gap={2}>
+                                        
+                                      
+                                        <Text display="flex" alignItems="center" gap="8px" overflow="hidden" fontWeight="bold" textOverflow="ellipsis" whiteSpace="nowrap" fontStyle="italic">
+                                                <PiBuildingApartmentFill style={{ color: "#71717a" }} />
+                                                <span> {apartments.find((a) => a.apartment_id === customer.apartment_id)?.apartment_name || "Unknown"}</span>
+                                            </Text>
+                                          
+                                       
+                                        <Text display="flex" alignItems="center" gap="8px" overflow="hidden" fontWeight="bold" textOverflow="ellipsis" whiteSpace="nowrap" fontStyle="italic">
+                                            <FaPhone style={{ color: "#71717a" }} />
+                                                <span>{customer.phone_number ? customer.phone_number : "NA"}</span>
+                                            </Text>
+                                     
+
+                                        {/* Conditionally render email if it exists */}
+                                        
+                                        <Text display="flex" alignItems="center" gap="8px" fontWeight="bold" fontStyle="italic">
+                                            <FaEnvelope style={{ color: "#71717a", flexShrink: 0 }} />
+                                                <Tooltip label={customer.email} aria-label="Full email">
+                                                    <span
+                                                        style={{
+                                                            whiteSpace: "nowrap", // Prevents text from breaking into multiple lines
+                                                            overflow: "hidden",   // Ensures overflow is clipped
+                                                            textOverflow: "ellipsis", // Adds "..." for clipped text
+                                                            maxWidth: "150px",    // Adjust as needed for your design
+                                                            display: "inline-block", // Required for proper text clipping
+                                                            verticalAlign: "middle", // Keeps text aligned with icons or other elements
+                                                        }}
+                                                    >
+                                                        {customer.email ? customer.email : "NA"}
+                                                    </span>
+                                                </Tooltip>
+
+                                            </Text>
+                                       
+
+                                        <Flex className="bottom-buttons" pb={2} gap={2} justifyContent="center" mt="auto">
                                             <IconButton
                                                 size="sm"
-                                                colorScheme="teal"
+                                                color="white.500"
+                                                
                                                 icon={<FaEdit />}
                                                 aria-label="Edit"
-                                                onClick={() => openEditModal(customer)}
+                                                onClick={(e) => { e.stopPropagation(); setEditCustomer(customer); onOpen(); }}
                                             />
                                             <IconButton
                                                 size="sm"
-                                                colorScheme="teal"
+                                                color="black.500"
                                                 icon={<FaTrash />}
                                                 aria-label="Delete"
-                                                onClick={() => deleteCustomer(customer.user_id)}
+                                                onClick={(e) => { e.stopPropagation(); deleteCustomer(customer.user_id) }}
                                             />
                                         </Flex>
                                     </Stack>
-                                   
-                                        
-                               
+
+
+
                                 </Box>
 
                                 {/* Back Side - Default Order */}
                                 <Box className="card-back" borderWidth="1px" borderRadius="lg" p={4}>
                                     {/* Sticky Heading */}
                                     <Text fontWeight="bold" className="sticky-header">
-                                        Default Order
+                                        Default Order of {`${customer.name} (${customer.room_number})`}
                                     </Text>
+
 
                                     {/* Scrollable Content */}
                                     <Box className="scrollable-list" justifyItems="center">
                                         {selectedCustomerDefaultOrder.length > 0 ? (
                                             <Stack spacing={1}>
-                                                {selectedCustomerDefaultOrder.map((item) => {
-                                                    const product = products.find((p) => p.product_id === item.product_id);
-                                                    return (
-                                                        <Text key={item.product_id}>
-                                                            {product ? `${product.product_name} (${product.unit})` : "Unknown Product"} - {item.quantity}
-                                                        </Text>
-                                                    );
-                                                })}
+                                                <VStack spacing={1} align="stretch">
+                                                    {selectedCustomerDefaultOrder.map((item) => {
+                                                        const product = products.find((p) => p.product_id === item.product_id);
+                                                        return (
+                                                            <Flex
+                                                                key={item.product_id}
+                                                                align="center"
+                                                                justify="space-between"
+                                                                p={1}
+                                                                borderBottom="1px solid #E2E8F0"
+                                                                fontSize="sm"
+                                                                whiteSpace="nowrap"
+                                                                overflow="hidden"
+                                                                textOverflow="ellipsis"
+                                                            >
+                                                                {/* Product Name & Unit in a single line */}
+                                                                <Text fontWeight="medium" color="gray.700" isTruncated>
+                                                                    {product ? `${product.product_name} (${product.unit})` : "Unknown Product"}
+                                                                </Text>
+
+                                                                {/* Quantity with a soft highlight */}
+                                                                <Text fontWeight="bold" color="blue.500">
+                                                                    {item.quantity}
+                                                                </Text>
+                                                            </Flex>
+                                                        );
+                                                    })}
+                                                </VStack>
+
+
                                             </Stack>
                                         ) : (
                                             <Box justifyContent="center" justifyItems="center">
-                                                    <Text >No default order items.</Text>
+                                                <Text >No default order items.</Text>
                                             </Box>
-                                            
+
                                         )}
                                     </Box>
 
                                     {/* Buttons at the Bottom */}
                                     <Box className="bottom-buttons">
                                         <Button size="sm" colorScheme="teal" onClick={() => {
+                                            // e.stopPropagation(); 
                                             setSelectedCustomerId(customer.user_id);
                                             setIsDefaultOrderModalOpen(true);
                                         }}>
@@ -341,75 +411,20 @@ const ManageCustomersPage = ({ apartments, fetchApartments }) => {
                 isOpen={isDefaultOrderModalOpen}
                 onClose={() => setIsDefaultOrderModalOpen(false)}
                 customerId={selectedCustomerId}
-                
+
             />
-            <Modal isOpen={isCustomerModalOpen} onClose={() => { setIsCustomerModalOpen(false); setEditCustomer(null); }}>
-                <ModalOverlay />
-                <ModalContent>
-                    <ModalHeader>{editCustomer ? "Edit Customer" : "Add Customer"}</ModalHeader>
-                    <ModalCloseButton />
-                    <ModalBody>
-                        <Input
-                            placeholder="Name"
-                            value={editCustomer ? editCustomer.name : newCustomer.name}
-                            onChange={(e) => editCustomer
-                                ? setEditCustomer({ ...editCustomer, name: e.target.value })
-                                : setNewCustomer({ ...newCustomer, name: e.target.value })}
-                            mb={3}
-                        />
-                        <Select
-                            value={editCustomer ? editCustomer.apartment_id : newCustomer.apartment_id}
-                            onChange={(e) => editCustomer
-                                ? setEditCustomer({ ...editCustomer, apartment_id: e.target.value })
-                                : setNewCustomer({ ...newCustomer, apartment_id: e.target.value })}
-                            mb={3}
-                        >
-                            {apartments?.length > 0 ? (
-                                apartments.map((apt) => (
-                                    <option key={apt.apartment_id} value={apt.apartment_id}>
-                                        {apt.apartment_name}
-                                    </option>
-                                ))
-                            ) : (
-                                <option disabled>No apartments available</option>
-                            )}
-                        </Select>
-                        <Input
-                            placeholder="Room No"
-                            value={editCustomer ? editCustomer.room_number : newCustomer.room_number}
-                            onChange={(e) => editCustomer
-                                ? setEditCustomer({ ...editCustomer, room_number: e.target.value })
-                                : setNewCustomer({ ...newCustomer, room_number: e.target.value })}
-                            mb={3}
-                        />
-                        <Input
-                            placeholder="Phone Number"
-                            value={editCustomer ? editCustomer.phone_number : newCustomer.phone_number}
-                            onChange={(e) => editCustomer
-                                ? setEditCustomer({ ...editCustomer, phone_number: e.target.value })
-                                : setNewCustomer({ ...newCustomer, phone_number: e.target.value })}
-                            mb={3}
-                        />
-                        <Input
-                            placeholder="Email"
-                            value={editCustomer ? editCustomer.email : newCustomer.email}
-                            onChange={(e) => editCustomer
-                                ? setEditCustomer({ ...editCustomer, email: e.target.value })
-                                : setNewCustomer({ ...newCustomer, email: e.target.value })}
-                            mb={3}
-                        />
-                       
-                       
-
-
-
-                        <Button mt={4} colorScheme="green" onClick={editCustomer ? updateCustomer : addCustomer}>
-                            {editCustomer ? "Save Changes" : "Add Customer"}
-                        </Button>
-                    </ModalBody>
-                </ModalContent>
-            </Modal>
-
+            <CustomerDrawer
+                isOpen={isOpen}
+                onClose={onClose}
+                editCustomer={editCustomer}
+                setEditCustomer={setEditCustomer}
+                newCustomer={newCustomer}
+                setNewCustomer={setNewCustomer}
+                apartments={apartments}
+                selectedApartment={selectedApartment}
+                addCustomer={addCustomer}
+                updateCustomer={updateCustomer}
+            />
         </Box>
     );
 };

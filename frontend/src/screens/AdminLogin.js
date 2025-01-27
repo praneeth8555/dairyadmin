@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useState,useContext } from "react";
 import { Box, Button, FormControl, FormLabel, Input, Heading, Text, VStack, useToast } from "@chakra-ui/react";
 import axios from "axios";
 import CONFIG from '../config';
-
+import { AuthContext } from "../AuthContext";
 import backgroundImage from "../images/img2.jpg"
 
 const AdminLogin = () => {
@@ -10,6 +10,7 @@ const AdminLogin = () => {
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const toast = useToast();
+    const { login } = useContext(AuthContext);
     //dotenv.config()
     // Dynamically set the API base URL
    
@@ -24,7 +25,7 @@ const AdminLogin = () => {
                 Password: password,
             });
 
-            localStorage.setItem("token", response.data.token);
+            login(response.data.token);
             toast({
                 title: "Login Successful",
                 description: "Welcome back!",

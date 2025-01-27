@@ -28,7 +28,7 @@ import {
     useBreakpointValue
 
 } from "@chakra-ui/react";
-import { FaEdit, FaTrash, FaSearch, FaArrowLeft,FaPlus } from "react-icons/fa";
+import { FaEdit, FaTrash, FaSearch, FaArrowLeft,FaPlus,FaCalendarAlt } from "react-icons/fa";
 import { FaMoneyBillTrendUp } from "react-icons/fa6";
 import PriceHistory from "./PriceHistory";
 import { useNavigate } from "react-router-dom";
@@ -36,7 +36,7 @@ import CONFIG from "../config";
 const ProductManagement = () => {
     const navigate=useNavigate()
     const [products, setProducts] = useState([]);
-    const [newProduct, setNewProduct] = useState({ name: "", unit: "", price: "", image: null });
+    const [newProduct, setNewProduct] = useState({ name: "", unit: "", price: "", image: null,acronym:"" });
     const [editProduct, setEditProduct] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -103,7 +103,7 @@ const ProductManagement = () => {
     };
 
     const addProduct = async () => {
-        if (!newProduct.name || !newProduct.unit || !newProduct.price || !newProduct.image) {
+        if (!newProduct.name || !newProduct.unit || !newProduct.price || !newProduct.image || !newProduct.acronym) {
             toast({
                 title: "All fields are required",
                 status: "error",
@@ -115,13 +115,15 @@ const ProductManagement = () => {
 
         try {
             const imageUrl = await postDetails(newProduct.image);
+            console.log(newProduct)
             await axios.post(`${CONFIG.API_BASE_URL}/products`, {
                 product_name: newProduct.name,
                 unit: newProduct.unit,
                 current_price: parseFloat(newProduct.price),
                 image_url: imageUrl,
+                acronym: newProduct.acronym
             });
-            setNewProduct({ name: "", unit: "", price: "", image: null });
+            setNewProduct({ name: "", unit: "", price: "", image: null,acronym:"" });
             fetchProducts();
             onClose();
             toast({
@@ -136,7 +138,7 @@ const ProductManagement = () => {
     };
 
     const editProductDetails = async () => {
-        if (!editProduct.product_name || !editProduct.unit || !editProduct.current_price) {
+        if (!editProduct.product_name || !editProduct.unit || !editProduct.current_price || !editProduct.acronym) {
             toast({
                 title: "All fields are required",
                 status: "error",
@@ -153,13 +155,14 @@ const ProductManagement = () => {
             if (editProduct.image) {
                 imageUrl = await postDetails(editProduct.image);
             }
-
+            // console.log(editProduct)
             await axios.put(`${CONFIG.API_BASE_URL}/products/${editProduct.product_id}`, {
                 product_name: editProduct.product_name,
                 unit: editProduct.unit,
                 current_price: parseFloat(editProduct.current_price),
                 image_url: imageUrl,
                 effective_from: editProduct.effectiveFrom,
+                acronym: editProduct.acronym
             });
 
             fetchProducts();
@@ -203,6 +206,10 @@ const ProductManagement = () => {
         base: <FaPlus />,  // ✅ Show "+" on mobile
         md: "Add New Product" // ✅ Show text on desktops
     });
+    const resetModal = () => {
+        setNewProduct({ name: "", unit: "", price: "", image: null,acronym:"" });
+        setEditProduct(null);
+    };
     return (
         <Box p={8} bg="gray.50" minH="100vh">
             <Flex align="center" mb={4}>
@@ -317,6 +324,15 @@ const ProductManagement = () => {
                                         md: "md",    // Normal text on desktop
                                     }}
                                 >
+                                    {product.acronym}
+                                </Text>
+                                <Text
+                                    color="#0E3746"
+                                    fontSize={{
+                                        base: "xs",  // Smaller text for unit on mobile
+                                        md: "md",    // Normal text on desktop
+                                    }}
+                                >
                                     {product.unit}
                                 </Text>
                                 <Text
@@ -379,7 +395,10 @@ const ProductManagement = () => {
                 isOpen={isPriceHistoryOpen}
                 onClose={() => setIsPriceHistoryOpen(false)}
             />
-            <Modal isOpen={isOpen} onClose={onClose}>
+            <Modal isOpen={isOpen} onClose={() => {
+                resetModal();  // ✅ Reset modal when closed
+                onClose();
+            }}>
                 <ModalOverlay />
                 <ModalContent>
                     <ModalHeader>{editProduct ? "Edit Product" : "Add New Product"}</ModalHeader>
@@ -396,7 +415,17 @@ const ProductManagement = () => {
                             }
                         />
                         <Input
-                            placeholder="Unit (e.g., liters, kg)"
+                            placeholder="acronym"
+                            mb={3}
+                            value={editProduct ? editProduct.acronym : newProduct.acronym}
+                            onChange={(e) =>
+                                editProduct
+                                    ? setEditProduct({ ...editProduct, acronym: e.target.value })
+                                    : setNewProduct({ ...newProduct, acronym: e.target.value })
+                            }
+                        />
+                        <Input
+                            placeholder="Unit (e.g., l, kg)"
                             mb={3}
                             value={editProduct ? editProduct.unit : newProduct.unit}
                             onChange={(e) =>
@@ -416,16 +445,33 @@ const ProductManagement = () => {
                                     : setNewProduct({ ...newProduct, price: e.target.value })
                             }
                         />
-                        <Input
-                            type="date"
-                            mb={3}
-                            value={editProduct ? editProduct.effectiveFrom || "" : ""}
-                            onChange={(e) =>
-                                editProduct
-                                    ? setEditProduct({ ...editProduct, effectiveFrom: e.target.value })
-                                    : null
-                            }
-                        />
+                        {editProduct && (
+                            <div style={{ position: "relative", marginBottom: "16px" }}>
+                                <input
+                                    type="date"
+                                    style={{
+                                        width: "100%",
+                                        padding: "8px 12px 8px 40px", // Adjust padding for icon spacing
+                                        boxSizing: "border-box",
+                                    }}
+                                    value={editProduct.effectiveFrom || ""}
+                                    onChange={(e) =>
+                                        setEditProduct({ ...editProduct, effectiveFrom: e.target.value })
+                                    }
+                                />
+                                <FaCalendarAlt
+                                    style={{
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "10px", // Adjust icon position
+                                        transform: "translateY(-50%)",
+                                        color: "#888", // Optional: Adjust color
+                                    }}
+                                />
+                            </div>
+                        )}
+
+
 
 
                         <Input
