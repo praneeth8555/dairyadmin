@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
 	"github.com/gorilla/mux"
-	
 )
 
 // CORS Middleware
@@ -37,6 +35,33 @@ func enableCORS(next http.Handler) http.Handler {
 func main() {
 	// Connect to database
 	config.ConnectDatabase()
+
+	// if err := config.ConnectDatabase(); err != nil {
+	// 	log.Fatalf("Database connection failed: %v", err)
+	// }
+
+	// appEnv := os.Getenv("APP_ENV")
+	// if appEnv == "" {
+	// 	appEnv = "production"
+	// }
+
+	// if appEnv == "production" {
+	// 	defer config.PGX.Close(context.Background())
+
+	// 	var version string
+	// 	if err := config.PGX.QueryRow(context.Background(), "SELECT version()").Scan(&version); err != nil {
+	// 		log.Fatalf("Query failed: %v", err)
+	// 	}
+	// 	log.Println("Connected to:", version)
+	// } else {
+	// 	defer config.DB.Close()
+
+	// 	var version string
+	// 	if err := config.DB.QueryRow("SELECT version()").Scan(&version); err != nil {
+	// 		log.Fatalf("Query failed: %v", err)
+	// 	}
+	// 	log.Println("Connected to:", version)
+	// }
 
 	// Create a new router
 	router := mux.NewRouter()

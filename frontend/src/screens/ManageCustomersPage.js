@@ -41,7 +41,8 @@ const ManageCustomersPage = ({ apartments }) => {
         apartment_id: "",
         room_number: "",
         phone_number: "",
-        email: ""
+        email: "",
+        priority_order:null
     });
     // const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [selectedApartment, setSelectedApartment] = useState("");
@@ -54,26 +55,49 @@ const ManageCustomersPage = ({ apartments }) => {
     const [selectedCustomerId, setSelectedCustomerId] = useState(null);
     //const [selectedDefaultOrder, setSelectedDefaultOrder] = useState([]);
     const [selectedCustomerDefaultOrder, setSelectedCustomerDefaultOrder] = useState([]);
+    const [isAlternatingOrder, setIsAlternatingOrder] = useState(false);
     const [flippedCustomerId, setFlippedCustomerId] = useState(null);
     const { isOpen, onOpen, onClose } = useDisclosure();
 
 
-    const fetchCustomers = useCallback(async () => {    
+    // const fetchCustomers = useCallback(async () => {    
+    //     try {
+    //         const response = await axios.get(`${CONFIG.API_BASE_URL}/customers`);
+    //         setCustomers(response.data || []);
+    //     } catch (error) {
+    //         setCustomers([]);
+    //         toast({ title: "Error fetching customers", status: "error" });
+    //     }
+    // }, [toast]); 
+    const fetchCustomers = useCallback(async () => {
+        if (!selectedApartment) return;
+
         try {
-            const response = await axios.get(`${CONFIG.API_BASE_URL}/customers`);
+            const response = await axios.get(`${CONFIG.API_BASE_URL}/apartcustomers`, {
+                params: { apartment_id: selectedApartment }
+            });
             setCustomers(response.data || []);
         } catch (error) {
             setCustomers([]);
             toast({ title: "Error fetching customers", status: "error" });
         }
-    }, [toast]); 
+    }, [selectedApartment, toast]);
 
+    // useEffect(() => {
+    //     if (apartments?.length > 0 && !selectedApartment) {
+    //         setSelectedApartment(apartments[0].apartment_id);
+    //     }
+    //     fetchCustomers();
+    // }, [apartments,selectedApartment,fetchCustomers]);
     useEffect(() => {
         if (apartments?.length > 0 && !selectedApartment) {
             setSelectedApartment(apartments[0].apartment_id);
         }
+    }, [apartments,selectedApartment]);
+
+    useEffect(() => {
         fetchCustomers();
-    }, [apartments,selectedApartment,fetchCustomers]);
+    }, [fetchCustomers]);
 
     useEffect(() => {
         const fetchProducts = async () => {
@@ -92,11 +116,13 @@ const ManageCustomersPage = ({ apartments }) => {
         try {
             const response = await axios.get(`${CONFIG.API_BASE_URL}/customers/${customerId}/default-order`);
 
-
+            
             // ✅ Extract only the products array and set it correctly
             setSelectedCustomerDefaultOrder(response.data.products || []);
+            setIsAlternatingOrder(response.data.is_alternating_order || false);
         } catch (error) {
-            setSelectedCustomerDefaultOrder([]); // Ensure it's an empty array if the fetch fails
+            setSelectedCustomerDefaultOrder([]);// Ensure it's an empty array if the fetch fails
+            setIsAlternatingOrder(false);
             console.error("Error fetching default order:", error);
         }
     };
@@ -114,8 +140,9 @@ const ManageCustomersPage = ({ apartments }) => {
             room_number: editCustomer.room_number,
             phone_number: editCustomer.phone_number,
             email: editCustomer.email,
+            priority_order: Number(editCustomer.priority_order)
         };
-        console.log(requestBody)
+        //console.log(requestBody)
         try {
             await axios.put(`${CONFIG.API_BASE_URL}/customers/${editCustomer.user_id}`, requestBody);
             toast({ title: "Customer updated successfully!", status: "success" });
@@ -159,6 +186,7 @@ const ManageCustomersPage = ({ apartments }) => {
             room_number: newCustomer.room_number,
             phone_number: newCustomer.phone_number,
             email: newCustomer.email,
+            priority_order:Number(newCustomer.priority_order)
         };
 
         // Only add products if there are any
@@ -177,6 +205,7 @@ const ManageCustomersPage = ({ apartments }) => {
                 room_number: "",
                 phone_number: "",
                 email: "",
+                priority_order:null
                
             });
             onClose();
@@ -188,14 +217,12 @@ const ManageCustomersPage = ({ apartments }) => {
         }
     };
 
-    const filteredCustomers = customers.filter((customer) => {
-        return (
-            (!selectedApartment || customer.apartment_id === selectedApartment) &&
-            (customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                customer.phone_number.includes(searchTerm) ||
-                customer.room_number.includes(searchTerm))
-        );
-    });
+    const filteredCustomers = customers.filter((customer) =>
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.phone_number.includes(searchTerm) ||
+        customer.room_number.includes(searchTerm)
+    );
+
 
     return (
         <Box>
@@ -261,7 +288,11 @@ const ManageCustomersPage = ({ apartments }) => {
                         }}>
                             <Box className={`card ${flippedCustomerId === customer.user_id ? "flipped" : ""}`}>
                                 {/* Front Side */}
+                               
                                 <Box className="card-front" borderWidth="1px" borderRadius="lg" overflow="hidden" p={4} >
+                                    <Box position="absolute" top="8px" right="8px" bg="teal.500" color="white" px={2} py={1} borderRadius="md" fontSize="xs" fontWeight="bold">
+                                        #{customer.priority_order}
+                                    </Box>
                                     <Stack spacing={1}>
                                         <Text fontWeight="bold" fontSize="16px" fontStyle="italic" textAlign="center" >{customer.name}</Text>
                                         <Box
@@ -348,9 +379,10 @@ const ManageCustomersPage = ({ apartments }) => {
                                                 <VStack spacing={1} align="stretch">
                                                     {selectedCustomerDefaultOrder.map((item) => {
                                                         const product = products.find((p) => p.product_id === item.product_id);
+                                                        const label = product ? `${product.acronym} (${product.unit})` : "Unknown Product";
                                                         return (
                                                             <Flex
-                                                                key={item.product_id}
+                                                                key={isAlternatingOrder ? `${item.day_type === 'EVEN' ? '1' : '0'}_${item.product_id}` : item.product_id}
                                                                 align="center"
                                                                 justify="space-between"
                                                                 p={1}
@@ -361,9 +393,16 @@ const ManageCustomersPage = ({ apartments }) => {
                                                                 textOverflow="ellipsis"
                                                             >
                                                                 {/* Product Name & Unit in a single line */}
-                                                                <Text fontWeight="medium" color="gray.700" isTruncated>
-                                                                    {product ? `${product.product_name} (${product.unit})` : "Unknown Product"}
-                                                                </Text>
+                                                                
+                                                                    <Text fontWeight="medium" color="gray.700" isTruncated>
+                                                                        {label}
+                                                                    </Text>
+                                                                    {isAlternatingOrder && item.day_type && (
+                                                                        <Text fontSize="xs" color="red.500">
+                                                                            {item.day_type === "ODD" ? "O" : "E"}
+                                                                        </Text>
+                                                                    )}
+                                                                
 
                                                                 {/* Quantity with a soft highlight */}
                                                                 <Text fontWeight="bold" color="blue.500">

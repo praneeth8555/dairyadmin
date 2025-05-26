@@ -101,6 +101,7 @@ const OrdersPage = () => {
             const response = await axios.get(
                 `${CONFIG.API_BASE_URL}/orders?customer_id=${selectedCustomer.value}&month=${month.value}&year=${year.value}`
             );
+            console.log(response.data)
             setOrders(response.data);
         } catch (error) {
             toast({ title: "Error fetching orders", status: "error", duration: 3000, isClosable: true });

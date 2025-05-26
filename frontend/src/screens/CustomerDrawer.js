@@ -39,7 +39,7 @@ const CustomerDrawer = ({
     const handleClose = () => {
         onClose();
         setEditCustomer(null);
-        setNewCustomer({ name: "", apartment_id: selectedApartment || "", room_number: "", phone_number: "", email: "" });
+        setNewCustomer({ name: "", apartment_id: selectedApartment || "", room_number: "", phone_number: "", email: "",priority_order:null });
     };
 
     // Set default apartment when drawer opens
@@ -98,6 +98,12 @@ const CustomerDrawer = ({
                         placeholder="Email"
                         defaultValue={editCustomer ? editCustomer.email : newCustomer.email}
                         onChange={(e) => handleChange(e, "email")}
+                        mb={3}
+                    />
+                    <Input
+                        placeholder="Priority Order"
+                        defaultValue={editCustomer ? editCustomer.priority_order : newCustomer.priority_order}
+                        onChange={(e) => handleChange(e, "priority_order")}
                         mb={3}
                     />
 

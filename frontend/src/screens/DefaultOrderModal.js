@@ -21,6 +21,9 @@ import {
     NumberInputStepper,
     NumberIncrementStepper,
     NumberDecrementStepper,
+    Switch,
+    FormControl, 
+    FormLabel
 } from "@chakra-ui/react";
 import { FaTrash, FaPlus } from "react-icons/fa";
 import axios from "axios";
@@ -35,6 +38,8 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
     const [defaultOrder, setDefaultOrder] = useState([]);
     const [existingOrder, setExistingOrder] = useState(false);
     const toast = useToast();
+    const [isAlternatingOrder, setIsAlternatingOrder] = useState(false);
+    const [selectedDayType, setSelectedDayType] = useState("ODD");
 
     // Fetch products
     useEffect(() => {
@@ -96,7 +101,11 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
             return;
         }
 
-        const existingProduct = defaultOrder.find((p) => p.product_id === selectedProduct);
+        const existingProduct = defaultOrder.find((p) => 
+            isAlternatingOrder
+                ? p.product_id === selectedProduct && p.day_type === selectedDayType
+                : p.product_id === selectedProduct
+            );
         if (existingProduct) {
             toast({ title: "Product already added", status: "warning" });
             return;
@@ -110,7 +119,10 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
 
         setDefaultOrder((prevOrder) => [
             ...prevOrder,
-            { ...productDetails, quantity: selectedQuantity },
+            { ...productDetails,
+                 quantity: selectedQuantity ,
+                ...(isAlternatingOrder ? { day_type: selectedDayType } : {}),
+            },
         ]);
         setSelectedProduct("");
         setSelectedQuantity(1);
@@ -129,9 +141,11 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
         }
 
         const payload = {
+            is_alternating_order: isAlternatingOrder,
             products: defaultOrder.map((product) => ({
                 product_id: product.product_id,
                 quantity: product.quantity,
+                ...(isAlternatingOrder ? { day_type: product.day_type || "ODD" } : {})
             })),
         };
 
@@ -150,6 +164,13 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
             } else {
                 setDefaultOrder([]);
             }
+
+
+            if (response.data.is_alternating_order ) {
+                setIsAlternatingOrder(response.data.is_alternating_order );
+            } else {
+                setIsAlternatingOrder(false);
+            }
             onClose();
         } catch (error) {
             toast({ title: "Failed to save default order", status: "error" });
@@ -164,6 +185,11 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                 <ModalHeader>{existingOrder ? "Edit Default Order" : "Create Default Order"}</ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
+                    <FormControl display="flex" alignItems="center" mb={4}>
+                        <FormLabel htmlFor="alt-toggle" mb="0">Use Alternating Default Order?</FormLabel>
+                        <Switch id="alt-toggle" isChecked={isAlternatingOrder} onChange={(e) => setIsAlternatingOrder(e.target.checked)} />
+                    </FormControl>
+
                     <MyComponent
                         key={customerId}
                         products={products}
@@ -171,6 +197,9 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                         setSelectedProduct={setSelectedProduct}
                         selectedQuantity={selectedQuantity}
                         setSelectedQuantity={setSelectedQuantity}
+                        isAlternatingOrder={isAlternatingOrder}
+                        selectedDayType={selectedDayType}
+                        setSelectedDayType={setSelectedDayType}
                     />
 
                     <Button leftIcon={<FaPlus />} colorScheme="green" mt={2} onClick={addProductToOrder}>
@@ -181,9 +210,10 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                             <Table variant="simple">
                                 <Thead>
                                     <Tr>
-                                        <Th>Product Image</Th>
+                                        {/* <Th>Product Image</Th> */}
                                         <Th>Product</Th>
                                         <Th>Quantity</Th>
+                                        {isAlternatingOrder && <Th>Day Type</Th>}
                                         <Th>Action</Th>
                                     </Tr>
                                 </Thead>
@@ -191,8 +221,8 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                                     {defaultOrder.map((orderItem) => {
                                         const product = products.find((p) => p.product_id === orderItem.product_id);
                                         return (
-                                            <Tr key={orderItem.product_id}>
-                                                <Td>
+                                            <Tr key={isAlternatingOrder ? `${orderItem.day_type === 'EVEN' ? '1' : '0'}_${orderItem.product_id}` : orderItem.product_id}>
+                                                {/* <Td>
                                                     {product && product.image_url ? (
                                                         <img
                                                             src={product.image_url}
@@ -202,7 +232,7 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                                                     ) : (
                                                         "Error loading"
                                                     )}
-                                                </Td>
+                                                </Td> */}
 
                                                 <Td>{product ? `${product.product_name} (${product.unit})` : "Unknown Product"}</Td>
 
@@ -214,7 +244,9 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                                                         onChange={(valueString, valueNumber) =>
                                                             setDefaultOrder(prev =>
                                                                 prev.map(p =>
-                                                                    p.product_id === product.product_id
+                                                                    (isAlternatingOrder
+                                                                        ? p.product_id === product.product_id && p.day_type === orderItem.day_type
+                                                                        : p.product_id === product.product_id)
                                                                         ? { ...p, quantity: valueNumber }
                                                                         : p
                                                                 )
@@ -228,6 +260,28 @@ const DefaultOrderModal = ({ isOpen, onClose, customerId }) => {
                                                         </NumberInputStepper>
                                                     </NumberInput>
                                                 </Td>
+
+                                                {isAlternatingOrder && (
+                                                    <Td>
+                                                        <select
+                                                            value={orderItem.day_type || "ODD"}
+                                                            onChange={(e) =>
+                                                                setDefaultOrder(prev =>
+                                                                    prev.map(p =>
+                                                                        p.product_id === product.product_id
+                                                                            ? { ...p, day_type: e.target.value }
+                                                                            : p
+                                                                    )
+                                                                )
+                                                            }
+                                                        >
+                                                            <option value="ODD">ODD</option>
+                                                            <option value="EVEN">EVEN</option>
+                                                            {/* <option value="CUSTOM">CUSTOM</option> */}
+                                                        </select>
+                                                    </Td>
+                                                )}
+
 
                                                 <Td>
                                                     <IconButton

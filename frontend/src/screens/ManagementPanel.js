@@ -68,9 +68,10 @@ const ManagementPanel = () => {
         { label: "Manage Products", image: bg2, path: "/products" },
         { label: "Manage Customers", image: bg4, path: "/customers" },
         { label: "Manage Orders", image: bg3, path: "/orders" },
-        { label: "Customer Sorting", image: bg7, path: "/sorting" },
+        // { label: "Customer Sorting", image: bg7, path: "/sorting" },
         { label: "Daily Order Summary", image: bg5, path: "/summary" },
         { label: "Monthly Billing", image: bg6, path: "/billing" },
+        { label: "Daily Sales", image: bg7, path: "/dailysales" },
     ];
 
     return (

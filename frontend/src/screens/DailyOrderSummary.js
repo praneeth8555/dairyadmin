@@ -24,9 +24,9 @@ import {
 
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
-import { FaArrowLeft,FaCheckCircle } from "react-icons/fa";
+import { FaArrowLeft,FaCheckCircle,FaCopy } from "react-icons/fa";
 import CONFIG from "../config"; // Assuming CONFIG.API_BASE_URL is defined in config.js
-
+import html2canvas from "html2canvas";
 const DailyOrderSummary = () => {
     const navigate = useNavigate();
     const [apartments, setApartments] = useState([]);
@@ -93,7 +93,12 @@ const DailyOrderSummary = () => {
                     params: { apartment_id: selectedApartment.value, date: formatDate(selectedDate) },
                 }
             );
-            setRoomSummary(response.data.user_orders);
+            //console.log(response.data.user_orders)
+            // setRoomSummary(response.data.user_orders);
+            setRoomSummary(Array.isArray(response.data.user_orders)
+                          ? response.data.user_orders
+                   : []);
+
         } catch (error) {
             toast({ title: "Error fetching room-wise summary", status: "error" });
         }
@@ -117,13 +122,39 @@ const DailyOrderSummary = () => {
                     params: { apartment_id: selectedApartment.value, date: formatDate(selectedDate) },
                 }
             );
-            setTotalSummary(response.data.totals);
+             setTotalSummary(Array.isArray(response.data.totals)
+            ? response.data.totals
+           : []);
             console.log(response.data.totals);
         } catch (error) {
             toast({ title: "Error fetching total summary", status: "error" });
         }
         setLoading(false);
     };
+
+        const handleCopyBill = async () => {
+            const billElement = document.getElementById("bill-table");
+            if (!billElement) {
+                toast({ title: "Bill table not found!", status: "error", duration: 3000, isClosable: true });
+                return;
+            }
+            try {
+                const canvas = await html2canvas(billElement, { scale: 2 });
+                canvas.toBlob(async (blob) => {
+                    if (!blob) return;
+                    try {
+                        await navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]);
+                        toast({ title: "Bill copied to clipboard!", status: "success", duration: 3000, isClosable: true });
+                    } catch (err) {
+                        toast({ title: "Failed to copy bill", status: "error", duration: 3000, isClosable: true });
+                    }
+                });
+            } catch (error) {
+                toast({ title: "Error copying bill", status: "error", duration: 3000, isClosable: true });
+            }
+        };
 
     return (
         <Box p={6}>
@@ -196,25 +227,70 @@ const DailyOrderSummary = () => {
                 <Button colorScheme="green" onClick={fetchTotalSummary}>Total Summary</Button>
             </Box>
 
-            {loading && <Spinner size="xl" mt={4} />}
-
+            {loading && <Spinner size="lg" display="block" mx="auto" />}
+            
+            
+            <Box maxW="600px" mx="auto" bg="gray.50" p={4}  borderRadius="lg" boxShadow="sm">      
             {/* Room-wise Summary Table */}
             {roomSummary.length > 0 && (
-                <Box mt={6}>
-                    <Heading size="md" mb={4}>Room-wise Summary</Heading>
+                
+                <Box >
+                        <Button
+                            leftIcon={<FaCopy />}
+                            colorScheme="blue"
+                            onClick={handleCopyBill}
+                            isDisabled={!roomSummary.length === 0} // ✅ Prevents sharing if no data
+                        >
+                            copy Bill
+                        </Button>
+                    {/* <Heading size="md" mb={4}>Room-wise Summary</Heading> */}
                     <Box overflowY="auto" maxHeight="400px">
-                        <Table variant="striped" colorScheme="gray">
-                            <Thead>
-                                <Tr>
-                                    <Th>Room</Th>
+                            <Table id="bill-table" variant="simple" colorScheme="gray" size="sm">
+
+                             <Thead>
+                                <Tr bg="white">
+                                    <Th colSpan={3} textAlign="center" fontSize="sm" fontStyle="italic" color="black" p={1} border="1px solid gray">
+                                        Room-wise Summary
+                                    </Th>
+                                </Tr>
+                                <Tr bg="white">
+                                    <Th colSpan={3} textAlign="center" fontSize="sm" fontStyle="italic" color="black" p={1} border="1px solid gray">
+                                        Sri Balaji Milk Supply
+                                    </Th>
+                                </Tr>
+                                <Tr bg="white">
+                                    <Th colSpan={3} textAlign="center" fontSize="xs" fontWeight="semibold" color="black" p={1} border="1px solid gray">
+                                        PH NO: <b>9963432665</b> / <b>7989495557</b>
+                                    </Th>
+                                </Tr>
+                                    <Tr bg="white">
+                                        <Th colSpan={3} textAlign="center" fontSize="md" fontWeight="bold" color="black" p={2} border="1px solid gray">
+                                            {formatDate(selectedDate)}
+                                        </Th>
+                                    </Tr>
+                                    <Tr bg="white">
+                                        <Th colSpan={3} textAlign="center" fontSize="sm" fontWeight="bold" color="black" p={1} border="1px solid gray">
+                                            {selectedApartment?.label}
+                                        </Th>
+                                    </Tr>
+                            </Thead>
+
+
+                            <Thead bg="teal.500" position="sticky" top="0" zIndex="10"> 
+
+                                <Tr >
+                                    <Th color="white" border="1px solid white">Room</Th>
                                     {/* <Th>Name</Th> */}
-                                    <Th>Products</Th>
+                                    <Th color="white" border="1px solid white">Products</Th>
                                 </Tr>
                             </Thead>
                             <Tbody>
                                 {roomSummary.map((user) => (
-                                    <Tr key={user.user_id}>
-                                        <Td>{user.room_number}</Td>
+                                    <Tr key={user.user_id}
+                                        borderBottom="2px solid teal"
+                                        bg={user.orders.length === 0 ? "red.100" : "inherit"} // ✅ Highlight No Orders
+                                    >
+                                        <Td border="1px solid teal" fontSize="xs" fontWeight="bold" p={1} textAlign="center">{user.room_number}</Td>
                                         {/* <Td>{user.name}</Td> */}
                                         <Td>
                                             {user.orders.length > 0 ? (
@@ -241,33 +317,69 @@ const DailyOrderSummary = () => {
                     </Box>
                 </Box>
             )}
-
-
+            </Box> 
+            <Box maxW="600px" mx="auto" bg="gray.50" p={4} borderRadius="lg" boxShadow="sm">
             {/* Total Summary Table */}
             {totalSummary.length > 0 && (
-                <Box mt={6} p={4} borderRadius="lg" boxShadow="md" bg="white">
-                    <Heading size="md" mb={4} color="teal.600" fontWeight="semibold">
-                        Total Summary
-                    </Heading>
-                    <Table variant="striped" colorScheme="gray" size="sm" >
+                <Box>
+                <Button
+                            leftIcon={<FaCopy />}
+                            colorScheme="blue"
+                            onClick={handleCopyBill}
+                            isDisabled={!roomSummary.length === 0} // ✅ Prevents sharing if no data
+                        >
+                            copy Bill
+                </Button>
+                        <Box overflowY="auto" maxHeight="400px" >
+                    
+                    <Table id="bill-table" variant="simple" colorScheme="gray" size="sm" >
                         <Thead>
+                            <Tr bg="white">
+                                <Th colSpan={3} textAlign="center" fontSize="sm" fontStyle="italic" color="black" p={1} border="1px solid gray">
+                                    Total Summary
+                                </Th>
+                            </Tr>
+                            <Tr bg="white">
+                                <Th colSpan={3} textAlign="center" fontSize="sm" fontStyle="italic" color="black" p={1} border="1px solid gray">
+                                    Sri Balaji Milk Supply
+                                </Th>
+                            </Tr>
+                            <Tr bg="white">
+                                <Th colSpan={3} textAlign="center" fontSize="xs" fontWeight="semibold" color="black" p={1} border="1px solid gray">
+                                    PH NO: <b>9963432665</b> / <b>7989495557</b>
+                                </Th>
+                            </Tr>
+                            <Tr bg="white">
+                                <Th colSpan={3} textAlign="center" fontSize="md" fontWeight="bold" color="black" p={2} border="1px solid gray">
+                                    {formatDate(selectedDate)}
+                                </Th>
+                            </Tr>
+                            <Tr bg="white">
+                                <Th colSpan={3} textAlign="center" fontSize="sm" fontWeight="bold" color="black" p={1} border="1px solid gray">
+                                    {selectedApartment?.label}
+                                </Th>
+                            </Tr>
+                        </Thead>
+                                <Thead bg="teal.500" position="sticky" top="0" zIndex="10">
                             <Tr>
-                                <Th color="gray.600" fontWeight="bold" textTransform="uppercase">Product</Th>
-                                <Th color="gray.600" fontWeight="bold" textTransform="uppercase">Total Quantity</Th>
+                                        <Th color="white" border="1px solid white" textTransform="uppercase">Product</Th>
+                                        <Th color="white" border="1px solid white" textTransform="uppercase">Total Quantity</Th>
                             </Tr>
                         </Thead>
                         <Tbody>
                             {totalSummary.map((summary) => (
                                
-                                <Tr key={summary.product_id}>
-                                    <Td >{products[summary.product_id] || "Unknown"}</Td>
-                                    <Td>{summary.quantity}</Td>
+                                <Tr key={summary.product_id} borderBottom="2px solid teal">
+                                    <Td border="1px solid teal">{products[summary.product_id] || "Unknown"}</Td>
+                                    <Td border="1px solid teal">{summary.quantity}</Td>
                                 </Tr>
                             ))}
                         </Tbody>
                     </Table>
                 </Box>
+                    </Box>
             )}
+            </Box>
 
         </Box>
     );

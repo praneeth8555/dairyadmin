@@ -8,9 +8,9 @@ import ProductManagement from "./screens/ProductManagement";
 import ManageCustomers from "./screens/ManageCustomers";
 import OrdersPage from "./screens/OrdersPage";
 import DailyOrderSummary from "./screens/DailyOrderSummary";
-import CustomerSorting from "./screens/CustomerSorting";
+//import CustomerSorting from "./screens/CustomerSorting";
 import MonthlyBilling from "./screens/MonthlyBilling";
-
+import DailySalesSummary from "./screens/DailySalesSummary";
 
 
 function App() {
@@ -25,8 +25,10 @@ function App() {
           <Route path="/customers" element={<ManageCustomers />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/summary" element={<DailyOrderSummary />} />
-          <Route path="/sorting" element={<CustomerSorting/>}/>
+          {/* <Route path="/sorting" element={<CustomerSorting/>}/> */}
           <Route path="/billing" element={<MonthlyBilling />} />
+
+            <Route path="/dailysales" element={<DailySalesSummary />} />
         </Route>
       </Routes>
     </Router>

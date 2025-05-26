@@ -13,16 +13,17 @@ import {
     Spinner,
     Flex,
     Text,
-    IconButton
+    IconButton,
+    Image
 } from "@chakra-ui/react";
-import { FaArrowLeft, FaShareAlt } from "react-icons/fa";
+import { FaArrowLeft, FaCopy } from "react-icons/fa";
 import axios from "axios";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
 import CreatableSelect from 'react-select/creatable';
 import CONFIG from "../config";
-
+import bg6 from "../images/qrshankar.jpeg";
 const MonthlyBilling = () => {
     const navigate = useNavigate();
     const [apartments, setApartments] = useState([]);
@@ -55,7 +56,14 @@ const MonthlyBilling = () => {
         const fetchCustomers = async () => {
             try {
                 const response = await axios.get(`${CONFIG.API_BASE_URL}/apartcustomers?apartment_id=${selectedApartment.value}`);
-                setCustomers(response.data.map(cust => ({ value: cust.user_id, label: `${cust.name} (Room ${cust.room_number})` })));
+                console.log(response.data)
+                setCustomers(response.data.map(cust => ({
+                    value: cust.user_id,
+                    label: `${cust.name} (Room ${cust.room_number})`,  // ✅ Name with Room No
+                    room: cust.room_number  ,
+                    phone_number:cust.phone_number                        
+                }))     
+                );
             } catch (error) {
                 toast({ title: "Error fetching customers", status: "error", duration: 3000, isClosable: true });
             }
@@ -102,37 +110,90 @@ const MonthlyBilling = () => {
             setLoading(false);
         }
     };
-    const handleShareBill = async () => {
-        const billElement = document.getElementById("bill-table"); // ✅ Capture the table
+    // const handleShareBill = async () => {
+    //     const billElement = document.getElementById("bill-table"); // ✅ Capture the table
+    //     if (!billElement) {
+    //         toast({ title: "Bill table not found!", status: "error", duration: 3000, isClosable: true });
+    //         return;
+    //     }
+
+    //     try {
+    //         // 🖼 Convert the table into an image
+    //         const canvas = await html2canvas(billElement, { scale: 2 });
+    //         const imageBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+
+    //         if (!navigator.share) {
+    //             toast({ title: "Sharing not supported on this device!", status: "error", duration: 3000, isClosable: true });
+    //             return;
+    //         }
+
+    //         // 📤 Use Web Share API if supported
+    //         const file = new File([imageBlob], "bill.png", { type: "image/png" });
+    //         const shareData = {
+    //             title: "Monthly Bill",
+    //             text: "Here is the monthly bill for your reference.",
+    //             files: [file], // ✅ Attach the bill image
+    //         };
+
+    //         await navigator.share(shareData);
+    //     } catch (error) {
+    //         console.error("Error sharing bill:", error);
+    //         toast({ title: "Failed to share bill!", status: "error", duration: 3000, isClosable: true });
+    //     }
+    // };
+
+    const handleCopyBill = async () => {
+        const billElement = document.getElementById("bill-table");
         if (!billElement) {
             toast({ title: "Bill table not found!", status: "error", duration: 3000, isClosable: true });
             return;
         }
-
         try {
-            // 🖼 Convert the table into an image
             const canvas = await html2canvas(billElement, { scale: 2 });
-            const imageBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-
-            if (!navigator.share) {
-                toast({ title: "Sharing not supported on this device!", status: "error", duration: 3000, isClosable: true });
-                return;
-            }
-
-            // 📤 Use Web Share API if supported
-            const file = new File([imageBlob], "bill.png", { type: "image/png" });
-            const shareData = {
-                title: "Monthly Bill",
-                text: "Here is the monthly bill for your reference.",
-                files: [file], // ✅ Attach the bill image
-            };
-
-            await navigator.share(shareData);
+            canvas.toBlob(async (blob) => {
+                if (!blob) return;
+                try {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]);
+                    toast({ title: "Bill copied to clipboard!", status: "success", duration: 3000, isClosable: true });
+                } catch (err) {
+                    toast({ title: "Failed to copy bill", status: "error", duration: 3000, isClosable: true });
+                }
+            });
         } catch (error) {
-            console.error("Error sharing bill:", error);
-            toast({ title: "Failed to share bill!", status: "error", duration: 3000, isClosable: true });
+            toast({ title: "Error copying bill", status: "error", duration: 3000, isClosable: true });
         }
     };
+
+    // const SHARE_WINDOW_NAME = "whatsappChatWindow";
+
+    // const shareOnWhatsApp = () => {
+    //     // 1) sanitize & E.164-ify the number
+    //     let digits = selectedCustomer.phoneNumber.replace(/\D/g, "");
+    //     if (digits.length === 10) digits = "91" + digits;
+
+    //     // 2) build your URL
+    //     const text = `Here’s your bill for ${month.label} ${year.value}`;
+    //     let url: string;
+    //     if (navigator.userAgent.match(/Windows|Macintosh/)) {
+    //         // desktop → WhatsApp Web
+    //         url = `https://web.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(text)}`;
+    //     } else {
+    //         // mobile → native app
+    //         url = `whatsapp://send?phone=${digits}&text=${encodeURIComponent(text)}`;
+    //     }
+
+    //     // 3) open (or reuse) the tab/window
+    //     const win = window.open(
+    //         url,
+    //         navigator.userAgent.match(/Windows|Macintosh/)
+    //             ? SHARE_WINDOW_NAME    // named window → reuse if already open
+    //             : "_self"              // mobile deep-link in same tab
+    //     );
+    //     if (win) win.focus();
+    // };
+
     return (
         <Box p={6}>
             <Flex align="center" mb={6}>
@@ -233,89 +294,149 @@ const MonthlyBilling = () => {
                 ) : (
                     <Box>
                         <Button
-                            leftIcon={<FaShareAlt />}
+                            leftIcon={<FaCopy />}
                             colorScheme="blue"
-                            onClick={handleShareBill}
+                            onClick={handleCopyBill}
                             isDisabled={!orders?.bill_details || orders?.bill_details?.length === 0} // ✅ Prevents sharing if no data
                         >
-                            Share Bill
+                            copy Bill
                         </Button>
-                        <Box maxW="600px" mx="auto" p={4} bg="gray.50" borderRadius="lg" boxShadow="sm">
-                            {orders?.bill_details?.length > 0 ? (
-                                <Box > {/* ✅ Enables vertical scrolling */}
-                                    <Table id="bill-table" variant="simple" colorScheme="gray" size="md">
-                                        {/* ✅ Table Heading Row */}
-                                        <Thead>
-                                            <Tr bg="teal.600">
-                                                <Th colSpan={3} textAlign="center" fontSize="lg" fontWeight="bold" color="white" p={4}>
-                                                    {month?.label} Milk Bill
-                                                </Th>
-                                            </Tr>
-                                        </Thead>
 
-                                        <Thead bg="teal.500" position="sticky" top="0" zIndex="10"> {/* ✅ Keeps the header fixed */}
-                                            <Tr>
-                                                <Th color="white" border="2px solid white">#</Th>
-                                                <Th color="white" border="2px solid white">Products</Th>
-                                                <Th color="white" border="2px solid white">Total Price</Th>
-                                            </Tr>
-                                        </Thead>
+                            {/* <Button
+                                leftIcon={<FaShareAlt />}
+                                colorScheme="blue"
+                                onClick={shareOnWhatsApp}
+                                isDisabled={!orders?.bill_details || orders?.bill_details?.length === 0} // ✅ Prevents sharing if no data
+                            >
+                                whatsapp Bill
+                            </Button> */}
+                            
+                            <Box maxW="600px" mx="auto" p={4} bg="gray.50" borderRadius="lg" boxShadow="sm">
+                                {orders?.bill_details?.length > 0 ? (
+                                    <Box > {/* ✅ Enables vertical scrolling */}
+                                        <Table id="bill-table" variant="simple" colorScheme="gray" size="md">
+                                            {/* ✅ Table Heading Row */}
+                                            <Thead>
+                                                <Tr bg="white">
+                                                    <Th colSpan={3} textAlign="center" fontSize="md" fontWeight="bold" color="black" p={2} border="1px solid gray">
+                                                        {month?.label} {year?.value}
+                                                    </Th>
+                                                </Tr>
+                                                <Tr bg="white">
+                                                    <Th colSpan={3} textAlign="center" fontSize="sm" fontWeight="bold" color="black" p={1} border="1px solid gray">
+                                                        {selectedCustomer?.room}, {selectedApartment?.label}
+                                                    </Th>
+                                                </Tr>
+                                                <Tr bg="white">
+                                                    <Th colSpan={3} textAlign="center" fontSize="sm" fontStyle="italic" color="black" p={1} border="1px solid gray">
+                                                        Sri Balaji Milk Supply
+                                                    </Th>
+                                                </Tr>
+                                                <Tr bg="white">
+                                                    <Th colSpan={3} textAlign="center" fontSize="xs" fontWeight="semibold" color="black" p={1} border="1px solid gray">
+                                                        PH NO: <b>9963432665</b> / <b>7989495557</b>
+                                                    </Th>
+                                                </Tr>
+                                            </Thead>
 
-                                        <Tbody>
-                                            {orders.bill_details.map((bill, index) => {
-                                                // const productSummary = bill.products.length > 0
-                                                //     ? bill.products.map(product => {
-                                                //         const productData = products[product.product_id] || {};
-                                                //         return `${productData.acronym}(${productData.unit})-${product.quantity}X${product.price_per_unit}`;
-                                                //     }).join(" + ")
-                                                //     : "No Orders"; // ✅ Display "No Orders" when no products exist
 
-                                                return (
-                                                    <Tr key={bill.date}
-                                                        borderBottom="2px solid teal"
-                                                        bg={bill.products.length === 0 ? "red.100" : "inherit"} // ✅ Highlight No Orders
-                                                    >
-                                                        <Td border="2px solid teal" fontWeight="bold">{index + 1}</Td>
-                                                        <Td border="2px solid teal" fontSize="sm" fontWeight="500">
-                                                            {bill.products.length > 0
-                                                                ? bill.products.map((product, idx) => {
-                                                                    const productData = products[product.product_id] || {};
-                                                                    return (
-                                                                        <span key={idx}>
-                                                                            <i>{productData.acronym} ({productData.unit})</i> - {product.quantity} X {product.price_per_unit}
-                                                                            {idx !== bill.products.length - 1 ? " + " : ""} {/* ✅ Adds "+" between products */}
-                                                                        </span>
-                                                                    );
-                                                                })
-                                                                : "No Orders"
-                                                            }
-                                                        </Td>
+                                            <Thead bg="teal.500" position="sticky" top="0" zIndex="10"> {/* ✅ Keeps the header fixed */}
+                                                <Tr>
+                                                    <Th color="white" border="1px solid white">#</Th>
+                                                    <Th color="white" border="1px solid white">Products</Th>
+                                                    <Th color="white" border="1px solid white">Price</Th>
+                                                </Tr>
+                                            </Thead>
 
-                                                        <Td fontWeight="bold" color="green.600" border="2px solid teal">
-                                                            ₹{bill.daybill}
-                                                        </Td>
-                                                    </Tr>
-                                                );
-                                            })}
+                                            <Tbody>
+                                                {orders.bill_details.map((bill, index) => {
+                                                    // const productSummary = bill.products.length > 0
+                                                    //     ? bill.products.map(product => {
+                                                    //         const productData = products[product.product_id] || {};
+                                                    //         return ${productData.acronym}(${productData.unit})-${product.quantity}X${product.price_per_unit};
+                                                    //     }).join(" + ")
+                                                    //     : "No Orders"; // ✅ Display "No Orders" when no products exist
 
-                                            {/* ✅ Grand Total Row */}
-                                            <Tr bg="teal.100">
-                                                <Td colSpan={2} fontSize="lg" fontWeight="bold" textAlign="right" border="2px solid teal">
-                                                    Grand Total:
-                                                </Td>
-                                                <Td fontSize="xl" fontWeight="bold" color="blue.700" border="2px solid teal">
-                                                    ₹{orders.total_bill}
-                                                </Td>
-                                            </Tr>
-                                        </Tbody>
-                                    </Table>
-                                </Box>
-                            ) : (
-                                <Text textAlign="center" color="gray.500">
-                                    No billing data available.
-                                </Text>
-                            )}
-                        </Box>
+                                                    return (
+                                                        <Tr key={bill.date}
+                                                            borderBottom="2px solid teal"
+                                                            bg={bill.products.length === 0 ? "red.100" : "inherit"} // ✅ Highlight No Orders
+                                                        >
+                                                            <Td border="1px solid teal" fontSize="xs" fontWeight="bold" p={1} textAlign="center">{index + 1}</Td>
+                                                            <Td border="1px solid teal" fontSize="xs" fontWeight="bold" p={1}>
+                                                                {bill.products.length > 0
+                                                                    ? bill.products.map((product, idx) => {
+                                                                        const productData = products[product.product_id] || {};
+                                                                        return (
+                                                                            <span key={idx}>
+                                                                                <i>{productData.acronym} ({productData.unit})</i> - {product.quantity} X {product.price_per_unit}
+                                                                                {idx !== bill.products.length - 1 ? " + " : ""} {/* ✅ Adds "+" between products */}
+                                                                            </span>
+                                                                        );
+                                                                    })
+                                                                    : "No Orders"
+                                                                }
+                                                            </Td>
+                                                                
+                                                            <Td fontWeight="bold" color="green.600" border="1px solid teal" fontSize="xs" p={1}>
+                                                                ₹{bill.daybill}
+                                                            </Td>
+                                                        </Tr>
+                                                    );
+                                                })}
+
+                                                <Tr >
+                                                    <Td colSpan={2} fontSize="xs" fontWeight="bold" textAlign="right" border="1px solid teal" py={1}>
+                                                        Delivery charges:
+                                                    </Td>
+                                                    <Td fontSize="xs" fontWeight="bold" color="blue.700" border="1px solid teal" p={1} py={1}>
+                                                        ₹ 100
+                                                    </Td>
+                                                </Tr>
+                                                {/* ✅ Grand Total Row */}
+                                                <Tr bg="teal.100">
+                                                    <Td colSpan={2} fontSize="md" fontWeight="bold" textAlign="right" border="1px solid teal">
+                                                        Grand Total:
+                                                    </Td>
+                                                    <Td fontSize="lg" fontWeight="bold" color="blue.700" border="1px solid teal">
+                                                        ₹{orders.total_bill+100}
+                                                    </Td>
+                                                </Tr>
+
+                                                <Tr>
+                                                    <Td colSpan={3} border="1px solid teal" p={3}>
+                                                        <Flex alignItems="center" justifyContent="space-between">
+                                                            <Box textAlign="left" flex="1" pr={2}>
+                                                                <Text fontWeight="bold" color="red.500" fontSize="sm">PL. PAY SOON & SEND SCREENSHOT</Text>
+                                                                <Text fontSize="xs" mt={1}>G PAY / PHONE PAY / UPI: <b>7989495557@ybl</b></Text>
+                                                                <Text fontSize="xs" mt={1}>Beneficiary: <b>T. SHIVA SHANKER</b> </Text>
+                                                                <Text fontSize="xs" mt={1}>Account: <b>13132150000580</b>(Punjab National Bank)</Text>
+                                                                <Text fontSize="xs" mt={1}>IFSC CODE: <b>PUNB0131310</b></Text>
+                                                                <Text fontSize="xs" mt={1}>Gachibowli Branch, 500032</Text>
+                                                            </Box>
+
+                                                            <Box ml={2} textAlign="center">
+                                                                <Image
+                                                                    src={bg6}
+                                                                    alt="payment-qr"
+                                                                    boxSize="100px" // ✅ Controlled small size
+                                                                    objectFit="contain"
+                                                                    border="1px solid black"
+                                                                />
+                                                                <Text fontSize="xs" mt={1} fontWeight="bold">Scan to Pay</Text>
+                                                            </Box>
+                                                        </Flex>
+                                                    </Td>
+                                                </Tr>
+                                            </Tbody>
+                                        </Table>
+                                    </Box>
+                                ) : (
+                                    <Text textAlign="center" color="gray.500">
+                                        No billing data available.
+                                    </Text>
+                                )}
+                            </Box>
 
                     </Box>
                 )}

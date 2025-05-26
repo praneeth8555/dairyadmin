@@ -67,10 +67,9 @@ func CreateProduct(w http.ResponseWriter, r *http.Request) {
     
     // Check if the image_url is empty or invalid
     if product.ImageURL == "" {
-       // fmt.Println("[ERROR] Image URL is missing in the request")
-        http.Error(w, "Image URL is required", http.StatusBadRequest)
-        return
+        product.ImageURL = "http://res.cloudinary.com/dzrcalore/image/upload/v1748271101/vszw1lp1mk060h9tpv7v.png"
     }
+
     
     // Log the image URL to ensure it is being received correctly
    // fmt.Printf("[DEBUG] Image URL received: %s\n", product.ImageURL)

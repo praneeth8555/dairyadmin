@@ -1,280 +1,636 @@
+// package handlers
+
+// import (
+// 	"backend/config"
+// 	"encoding/json"
+
+// 	"log"
+// 	"net/http"
+// )
+
+// // GetDailyOrderSummary Handler
 package handlers
 
 import (
-	"backend/config"
+	"database/sql"
 	"encoding/json"
-	
+
+	// "fmt"
 	"log"
 	"net/http"
+	"time"
+
+	"backend/config"
 )
 
-// GetDailyOrderSummary Handler
 func GetDailyOrderSummary(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	apartmentID := query.Get("apartment_id")
-	date := query.Get("date")
+    q := r.URL.Query()
+    aptID := q.Get("apartment_id")
+    dateStr := q.Get("date") // YYYY-MM-DD
 
-	if apartmentID == "" || date == "" {
-		http.Error(w, "Missing required parameters", http.StatusBadRequest)
-		return
-	}
+    if aptID == "" || dateStr == "" {
+        http.Error(w, "Missing required parameters", http.StatusBadRequest)
+        return
+    }
 
-	// Fetch users in the apartment ordered by priority_order ASC
-	userRows, err := config.DB.Query(`
-		SELECT user_id, name, room_number, priority_order 
-		FROM users 
-		WHERE apartment_id = $1 
-		ORDER BY priority_order ASC
-	`, apartmentID)
-	if err != nil {
-		log.Printf("Error fetching users: %v\n", err)
-		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
-		return
-	}
-	defer userRows.Close()
+    const layout = "2006-01-02"
+    currDate, err := time.Parse(layout, dateStr)
+    if err != nil {
+        http.Error(w, "Invalid date format", http.StatusBadRequest)
+        return
+    }
 
-	var userOrders []map[string]interface{}
+    // 1) Load users in apartment ordered by priority
+    userRows, err := config.DB.Query(`
+        SELECT user_id, name, room_number, priority_order
+          FROM users
+         WHERE apartment_id = $1
+         ORDER BY priority_order ASC
+    `, aptID)
+    if err != nil {
+        log.Printf("Error fetching users: %v\n", err)
+        http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+        return
+    }
+    defer userRows.Close()
 
-	// Iterate through users
-	for userRows.Next() {
-		var userID, name, roomNumber string
-		var priorityOrder int
-		err := userRows.Scan(&userID, &name, &roomNumber, &priorityOrder)
-		if err != nil {
-			http.Error(w, "Error scanning users", http.StatusInternalServerError)
-			return
-		}
+    globalRef := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+    summaries := make([]map[string]interface{}, 0)
 
-		// Fetch the latest modified order_id for this user on the given date
-		var orderID string
-		err = config.DB.QueryRow(`
-			SELECT order_id FROM order_modifications
-			WHERE user_id = $1 AND start_date <= $2 AND end_date >= $2
-			ORDER BY created_at DESC LIMIT 1;
-		`, userID, date).Scan(&orderID)
+    // 2) Iterate users
+    for userRows.Next() {
+        var userID, name, room string
+        var prio int
+        if err := userRows.Scan(&userID, &name, &room, &prio); err != nil {
+            http.Error(w, "Error scanning user", http.StatusInternalServerError)
+            return
+        }
 
-		// Store the orders for this user
-		userOrderItems := []map[string]interface{}{}
+        // 2a) check if alternating
+        var isAlt bool
+        if err := config.DB.QueryRow(
+            `SELECT is_alternating_order FROM users WHERE user_id=$1`, userID,
+        ).Scan(&isAlt); err != nil {
+            http.Error(w, "Error checking order type", http.StatusInternalServerError)
+            return
+        }
 
-		if err == nil { // If a modified order exists, fetch products from modifications
-			modRows, err := config.DB.Query(`
-				SELECT product_id, modified_quantity 
-				FROM order_modifications
-				WHERE order_id = $1;
-			`, orderID)
+        // 2b) find latest modification for that user and date
+        var (
+            modOrderID string
+            modCreated time.Time
+            modStart   string
+            modDayType sql.NullString
+            srcTable   string
+        )
+        err = config.DB.QueryRow(`
+            SELECT order_id, created_at, start_date, NULL AS day_type, 'normal' AS tbl
+              FROM order_modifications
+             WHERE user_id=$1 AND $2 BETWEEN start_date AND end_date
+            UNION ALL
+            SELECT order_id, created_at, start_date, day_type, 'alt' AS tbl
+              FROM alternating_order_modifications
+             WHERE user_id=$1 AND $2 BETWEEN start_date AND end_date
+            ORDER BY created_at DESC
+            LIMIT 1
+        `, userID, dateStr).Scan(
+            &modOrderID, &modCreated, &modStart, &modDayType, &srcTable,
+        )
 
-			if err != nil {
-				http.Error(w, "Error fetching modified orders", http.StatusInternalServerError)
-				return
-			}
-			defer modRows.Close()
+        userOrders := make([]map[string]interface{}, 0)
 
-			for modRows.Next() {
-				var productID string
-				var quantity float64
-				err := modRows.Scan(&productID, &quantity)
-				if err != nil {
-					http.Error(w, "Error scanning modified orders", http.StatusInternalServerError)
-					return
-				}
-				// Only add orders that are not paused
-				if quantity > 0 {
-					userOrderItems = append(userOrderItems, map[string]interface{}{
-						"product_id": productID,
-						"quantity":   quantity,
-					})
-				}
-			}
-		} else { // If no modifications, fetch default orders
-			defaultRows, err := config.DB.Query(`
-				SELECT product_id, quantity 
-				FROM default_order_items
-				WHERE user_id = $1
-			`, userID)
+        if err == nil {
+            // 2c) we have a modification; load from the winning table:
+            switch srcTable {
+            case "normal":
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM order_modifications
+                     WHERE order_id=$1
+                `, modOrderID)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string; var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty > 0 {
+                        userOrders = append(userOrders, map[string]interface{}{
+                            "product_id": pid, "quantity": qty,
+                        })
+                    }
+                }
 
-			if err != nil {
-				http.Error(w, "Error fetching default orders", http.StatusInternalServerError)
-				return
-			}
-			defer defaultRows.Close()
+            case "alt":
+                // parse RFC3339 or date-only
+                startRef, parseErr := time.Parse(time.RFC3339, modStart)
+                if parseErr != nil {
+                    startRef, _ = time.Parse(layout, modStart[:10])
+                }
+                todayType := getDayType(startRef, currDate)
 
-			for defaultRows.Next() {
-				var productID string
-				var quantity float64
-				err := defaultRows.Scan(&productID, &quantity)
-				if err != nil {
-					http.Error(w, "Error scanning default orders", http.StatusInternalServerError)
-					return
-				}
-				userOrderItems = append(userOrderItems, map[string]interface{}{
-					"product_id": productID,
-					"quantity":   quantity,
-				})
-			}
-		}
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM alternating_order_modifications
+                     WHERE order_id=$1 AND day_type=$2
+                `, modOrderID, todayType)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string; var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty > 0 {
+                        userOrders = append(userOrders, map[string]interface{}{
+                            "product_id": pid, "quantity": qty,
+                        })
+                    }
+                }
+            }
 
-		// Add user and orders to response
-		userOrders = append(userOrders, map[string]interface{}{
-			"user_id":       userID,
-			"name":          name,
-			"room_number":   roomNumber,
-			"priority_order": priorityOrder, // Including priority order in response
-			"orders":        userOrderItems,
-		})
-	}
+        } else {
+            // 2d) no mod → fallback to defaults
+            if isAlt {
+                dayType := getDayType(globalRef, currDate)
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, quantity
+                      FROM alternating_default_order_items
+                     WHERE user_id=$1 AND day_type=$2
+                `, userID, dayType)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string; var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty > 0 {
+                        userOrders = append(userOrders, map[string]interface{}{
+                            "product_id": pid, "quantity": qty,
+                        })
+                    }
+                }
+            } else {
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, quantity
+                      FROM default_order_items
+                     WHERE user_id=$1
+                `, userID)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string; var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty > 0 {
+                        userOrders = append(userOrders, map[string]interface{}{
+                            "product_id": pid, "quantity": qty,
+                        })
+                    }
+                }
+            }
+        }
 
-	// Construct response
-	response := map[string]interface{}{
-		"apartment_id": apartmentID,
-		"date":         date,
-		"user_orders":  userOrders,
-	}
+        // 3) append this user’s summary
+        summaries = append(summaries, map[string]interface{}{
+            "user_id":        userID,
+            "name":           name,
+            "room_number":    room,
+            "priority_order": prio,
+            "orders":         userOrders,
+        })
+    }
 
-	// Send response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+    // 4) send back
+    resp := map[string]interface{}{
+        "apartment_id": aptID,
+        "date":         dateStr,
+        "user_orders":  summaries,
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(resp)
 }
+
+// getDayType returns "EVEN" or "ODD" based on days since ref
+// func getDayType(ref, curr time.Time) string {
+//     if int(curr.Sub(ref).Hours()/24)%2 == 0 {
+//         return "EVEN"
+//     }
+//     return "ODD"
+// }
 
 // GetDailyTotalSummary Handler
 
 // GetDailyTotalSummary Handler
 func GetDailyTotalSummary(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query()
-	apartmentID := query.Get("apartment_id")
-	date := query.Get("date")
+    q := r.URL.Query()
+    aptID := q.Get("apartment_id")
+    dateStr := q.Get("date") // YYYY-MM-DD
 
-	if apartmentID == "" || date == "" {
-		http.Error(w, "Missing required parameters", http.StatusBadRequest)
-		return
-	}
+    if aptID == "" || dateStr == "" {
+        http.Error(w, "Missing required parameters", http.StatusBadRequest)
+        return
+    }
 
-	// Fetch all users in the apartment
-	userRows, err := config.DB.Query(`
-		SELECT user_id FROM users WHERE apartment_id = $1
-	`, apartmentID)
-	if err != nil {
-		log.Printf("Error fetching users: %v\n", err)
-		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
-		return
-	}
-	defer userRows.Close()
+    const layout = "2006-01-02"
+    currDate, err := time.Parse(layout, dateStr)
+    if err != nil {
+        http.Error(w, "Invalid date format", http.StatusBadRequest)
+        return
+    }
 
-	userIDs := []string{}
-	for userRows.Next() {
-		var userID string
-		err := userRows.Scan(&userID)
-		if err != nil {
-			http.Error(w, "Error scanning users", http.StatusInternalServerError)
-			return
-		}
-		userIDs = append(userIDs, userID)
-	}
+    // 1) Gather all users in the apartment
+    userRows, err := config.DB.Query(`
+        SELECT user_id, is_alternating_order
+          FROM users
+         WHERE apartment_id = $1
+    `, aptID)
+    if err != nil {
+        log.Printf("Error fetching users: %v", err)
+        http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+        return
+    }
+    defer userRows.Close()
 
-	if len(userIDs) == 0 {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"apartment_id": apartmentID,
-			"date":         date,
-			"totals":       []map[string]interface{}{},
-		})
-		return
-	}
+    // Global ref for alternating defaults
+    globalRef := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
 
-	// Fetch the latest modified order_id for each user on the given date
-	modifiedTotals := make(map[string]float64)
+    // Accumulators
+    modifiedTotals := make(map[string]float64)
+    defaultTotals  := make(map[string]float64)
 
-	for _, userID := range userIDs {
-		var orderID string
-		err = config.DB.QueryRow(`
-			SELECT order_id FROM order_modifications
-			WHERE user_id = $1 AND start_date <= $2 AND end_date >= $2
-			ORDER BY created_at DESC LIMIT 1;
-		`, userID, date).Scan(&orderID)
+    for userRows.Next() {
+        var userID string
+        var isAlt bool
+        if err := userRows.Scan(&userID, &isAlt); err != nil {
+            http.Error(w, "Error scanning user", http.StatusInternalServerError)
+            return
+        }
 
-		if err == nil { // If a modified order exists, fetch products from modifications
-			modRows, err := config.DB.Query(`
-				SELECT product_id, SUM(modified_quantity)
-				FROM order_modifications
-				WHERE order_id = $1
-				GROUP BY product_id;
-			`, orderID)
+        // 2) Find the single latest modification (normal OR alt)
+        var (
+            modOrderID string
+            modCreated time.Time
+            modStart   string
+            modDayType sql.NullString
+            srcTable   string
+        )
+        err := config.DB.QueryRow(`
+            SELECT order_id, created_at, start_date, NULL AS day_type, 'normal' AS tbl
+              FROM order_modifications
+             WHERE user_id = $1
+               AND $2 BETWEEN start_date AND end_date
+            UNION ALL
+            SELECT order_id, created_at, start_date, day_type, 'alt' AS tbl
+              FROM alternating_order_modifications
+             WHERE user_id = $1
+               AND $2 BETWEEN start_date AND end_date
+            ORDER BY created_at DESC
+            LIMIT 1
+        `, userID, dateStr).Scan(
+            &modOrderID, &modCreated, &modStart, &modDayType, &srcTable,
+        )
 
-			if err != nil {
-				http.Error(w, "Error fetching modified orders", http.StatusInternalServerError)
-				return
-			}
-			defer modRows.Close()
+        // Track which products this user modified
+        var modifiedProducts = map[string]bool{}
 
-			for modRows.Next() {
-				var productID string
-				var totalQuantity float64
-				err := modRows.Scan(&productID, &totalQuantity)
-				if err != nil {
-					http.Error(w, "Error scanning modified orders", http.StatusInternalServerError)
-					return
-				}
-				modifiedTotals[productID] += totalQuantity
-			}
-		}
-	}
+        if err == nil {
+            // We have a modification: load sums into modifiedTotals
+            switch srcTable {
 
-	// Fetch default orders for users who do not have modifications
-	defaultTotals := make(map[string]float64)
+            case "normal":
+                // Sum normal mod quantities
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM order_modifications
+                     WHERE order_id = $1
+                `, modOrderID)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string
+                    var qty float64
+                    rows.Scan(&pid, &qty)
+                    modifiedTotals[pid] += qty
+                    modifiedProducts[pid] = true
+                }
 
-	for _, userID := range userIDs {
-		defaultRows, err := config.DB.Query(`
-			SELECT product_id, SUM(quantity)
-			FROM default_order_items
-			WHERE user_id = $1
-			AND product_id NOT IN (
-				SELECT DISTINCT product_id FROM order_modifications WHERE user_id = $1 AND start_date <= $2 AND end_date >= $2
-			)
-			GROUP BY product_id;
-		`, userID, date)
+            case "alt":
+                // Determine dayType from this mod’s start_date
+                startRef, pErr := time.Parse(time.RFC3339, modStart)
+                if pErr != nil {
+                    startRef, _ = time.Parse(layout, modStart[:10])
+                }
+                dayType := getDayType(startRef, currDate)
 
-		if err != nil {
-			http.Error(w, "Error fetching default orders", http.StatusInternalServerError)
-			return
-		}
-		defer defaultRows.Close()
+                // Sum only products of that dayType
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM alternating_order_modifications
+                     WHERE order_id = $1
+                       AND day_type = $2
+                `, modOrderID, dayType)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string
+                    var qty float64
+                    rows.Scan(&pid, &qty)
+                    modifiedTotals[pid] += qty
+                    modifiedProducts[pid] = true
+                }
+            }
+        }
 
-		for defaultRows.Next() {
-			var productID string
-			var totalQuantity float64
-			err := defaultRows.Scan(&productID, &totalQuantity)
-			if err != nil {
-				http.Error(w, "Error scanning default orders", http.StatusInternalServerError)
-				return
-			}
-			defaultTotals[productID] += totalQuantity
-		}
-	}
+        // 3) Fallback to defaults for any products this user did *not* modify
+        if isAlt {
+            // Alternating default: only the dayType for this date
+            dayType := getDayType(globalRef, currDate)
+            // Exclude products in modifiedProducts
+            rows, _ := config.DB.Query(`
+                SELECT product_id, quantity
+                  FROM alternating_default_order_items
+                 WHERE user_id = $1
+                   AND day_type = $2
+            `, userID, dayType)
+            defer rows.Close()
+            for rows.Next() {
+                var pid string
+                var qty float64
+                rows.Scan(&pid, &qty)
+                if !modifiedProducts[pid] {
+                    defaultTotals[pid] += qty
+                }
+            }
 
-	// Merge modified and default totals
-	finalTotals := []map[string]interface{}{}
-	for productID, totalQuantity := range modifiedTotals {
-		finalTotals = append(finalTotals, map[string]interface{}{
-			"product_id": productID,
-			"quantity":   totalQuantity,
-		})
-	}
-	for productID, totalQuantity := range defaultTotals {
-		if _, exists := modifiedTotals[productID]; !exists {
-			finalTotals = append(finalTotals, map[string]interface{}{
-				"product_id": productID,
-				"quantity":   totalQuantity,
-			})
-		}
-	}
+        } else {
+            // Normal default: all products except modified
+            rows, _ := config.DB.Query(`
+                SELECT product_id, quantity
+                  FROM default_order_items
+                 WHERE user_id = $1
+            `, userID)
+            defer rows.Close()
+            for rows.Next() {
+                var pid string
+                var qty float64
+                rows.Scan(&pid, &qty)
+                if !modifiedProducts[pid] {
+                    defaultTotals[pid] += qty
+                }
+            }
+        }
+    }
 
-	// Construct response
-	response := map[string]interface{}{
-		"apartment_id": apartmentID,
-		"date":         date,
-		"totals":       finalTotals,
-	}
+    // 4) Merge into final slice
+    finalTotals := make([]map[string]interface{}, 0)
 
-	// Send response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+    for pid, qty := range modifiedTotals {
+        finalTotals = append(finalTotals, map[string]interface{}{
+            "product_id": pid, "quantity": qty,
+        })
+    }
+    for pid, qty := range defaultTotals {
+        if _, seen := modifiedTotals[pid]; !seen {
+            finalTotals = append(finalTotals, map[string]interface{}{
+                "product_id": pid, "quantity": qty,
+            })
+        }
+    }
+
+    // 5) Return JSON
+    resp := map[string]interface{}{
+        "apartment_id": aptID,
+        "date":         dateStr,
+        "totals":       finalTotals,
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(resp)
+}
+
+
+func GetDailySalesSummary(w http.ResponseWriter, r *http.Request) {
+    q := r.URL.Query()
+    dateStr := q.Get("date") // YYYY-MM-DD
+
+    if dateStr == "" {
+        http.Error(w, "Missing required date parameter", http.StatusBadRequest)
+        return
+    }
+
+    const layout = "2006-01-02"
+    curr, err := time.Parse(layout, dateStr)
+    if err != nil {
+        http.Error(w, "Invalid date format", http.StatusBadRequest)
+        return
+    }
+
+    globalRef := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)
+
+    // Fetch all users and their apartment_id
+    userRows, err := config.DB.Query(`
+        SELECT user_id, apartment_id, is_alternating_order
+          FROM users
+    `)
+    if err != nil {
+        log.Printf("Error fetching users: %v", err)
+        http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+        return
+    }
+    defer userRows.Close()
+
+    type UserInfo struct {
+        ApartmentID string
+        IsAlt       bool
+    }
+
+    users := make(map[string]UserInfo)
+
+    for userRows.Next() {
+        var uid, aptID string
+        var isAlt bool
+        if err := userRows.Scan(&uid, &aptID, &isAlt); err != nil {
+            http.Error(w, "Error scanning user", http.StatusInternalServerError)
+            return
+        }
+        users[uid] = UserInfo{ApartmentID: aptID, IsAlt: isAlt}
+    }
+
+    // Aggregators
+    type ProductSales struct {
+        TotalQty float64
+        ByApt    map[string]float64
+        Price    float64
+    }
+
+    sales := make(map[string]*ProductSales)
+
+    for uid, info := range users {
+        aptID := info.ApartmentID
+        isAlt := info.IsAlt
+
+        // Check for modifications
+        var (
+            modOrderID string
+            modCreated time.Time
+            modStart   string
+            modDayType sql.NullString
+            srcTable   string
+        )
+
+        err := config.DB.QueryRow(`
+            SELECT order_id, created_at, start_date, NULL AS day_type, 'normal' AS tbl
+              FROM order_modifications
+             WHERE user_id=$1 AND $2 BETWEEN start_date AND end_date
+            UNION ALL
+            SELECT order_id, created_at, start_date, day_type, 'alt' AS tbl
+              FROM alternating_order_modifications
+             WHERE user_id=$1 AND $2 BETWEEN start_date AND end_date
+            ORDER BY created_at DESC
+            LIMIT 1
+        `, uid, dateStr).Scan(&modOrderID, &modCreated, &modStart, &modDayType, &srcTable)
+
+        usedProducts := make(map[string]bool)
+
+        if err == nil {
+            switch srcTable {
+            case "normal":
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM order_modifications
+                     WHERE order_id=$1
+                `, modOrderID)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string
+                    var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty < 0 {
+                        continue
+                    }
+                    if _, ok := sales[pid]; !ok {
+                        sales[pid] = &ProductSales{ByApt: make(map[string]float64)}
+                    }
+                    sales[pid].TotalQty += qty
+                    sales[pid].ByApt[aptID] += qty
+                    usedProducts[pid] = true
+                }
+
+            case "alt":
+                startRef, parseErr := time.Parse(time.RFC3339, modStart)
+                if parseErr != nil {
+                    startRef, _ = time.Parse(layout, modStart[:10])
+                }
+                dayType := getDayType(startRef, curr)
+
+                rows, _ := config.DB.Query(`
+                    SELECT product_id, modified_quantity
+                      FROM alternating_order_modifications
+                     WHERE order_id=$1 AND day_type=$2
+                `, modOrderID, dayType)
+                defer rows.Close()
+                for rows.Next() {
+                    var pid string
+                    var qty float64
+                    rows.Scan(&pid, &qty)
+                    if qty < 0 {
+                        continue
+                    }
+                    if _, ok := sales[pid]; !ok {
+                        sales[pid] = &ProductSales{ByApt: make(map[string]float64)}
+                    }
+                    sales[pid].TotalQty += qty
+                    sales[pid].ByApt[aptID] += qty
+                    usedProducts[pid] = true
+                }
+            }
+        }
+
+        // No modification → fallback to defaults
+        if isAlt {
+            dayType := getDayType(globalRef, curr)
+            rows, _ := config.DB.Query(`
+                SELECT product_id, quantity
+                  FROM alternating_default_order_items
+                 WHERE user_id=$1 AND day_type=$2
+            `, uid, dayType)
+            defer rows.Close()
+            for rows.Next() {
+                var pid string
+                var qty float64
+                rows.Scan(&pid, &qty)
+                if qty < 0 || usedProducts[pid] {
+                    continue
+                }
+                if _, ok := sales[pid]; !ok {
+                    sales[pid] = &ProductSales{ByApt: make(map[string]float64)}
+                }
+                sales[pid].TotalQty += qty
+                sales[pid].ByApt[aptID] += qty
+            }
+
+        } else {
+            rows, _ := config.DB.Query(`
+                SELECT product_id, quantity
+                  FROM default_order_items
+                 WHERE user_id=$1
+            `, uid)
+            defer rows.Close()
+            for rows.Next() {
+                var pid string
+                var qty float64
+                rows.Scan(&pid, &qty)
+                if qty < 0 || usedProducts[pid] {
+                    continue
+                }
+                if _, ok := sales[pid]; !ok {
+                    sales[pid] = &ProductSales{ByApt: make(map[string]float64)}
+                }
+                sales[pid].TotalQty += qty
+                sales[pid].ByApt[aptID] += qty
+            }
+        }
+    }
+
+    // Attach pricing info
+    for pid, entry := range sales {
+        var pricePerUnit float64
+        if err := config.DB.QueryRow(`
+            SELECT new_price FROM product_price_history
+             WHERE product_id=$1 AND effective_from <= $2
+             ORDER BY effective_from DESC LIMIT 1
+        `, pid, curr).Scan(&pricePerUnit); err != nil {
+            if err2 := config.DB.QueryRow(`
+                SELECT old_price FROM product_price_history
+                 WHERE product_id=$1
+                 ORDER BY effective_from ASC LIMIT 1
+            `, pid).Scan(&pricePerUnit); err2 != nil {
+                if err3 := config.DB.QueryRow(`
+                    SELECT current_price FROM products WHERE product_id=$1
+                `, pid).Scan(&pricePerUnit); err3 != nil {
+                    pricePerUnit = 0
+                }
+            }
+        }
+        entry.Price = pricePerUnit
+    }
+
+    // Prepare response
+// Prepare response in desired format
+output := make([]map[string]interface{}, 0)
+
+for pid, entry := range sales {
+    apartmentList := make([]map[string]interface{}, 0)
+    for aptID, qty := range entry.ByApt {
+        apartmentList = append(apartmentList, map[string]interface{}{
+            "app1_id": aptID,
+            "qty":     qty,
+        })
+    }
+
+    output = append(output, map[string]interface{}{
+        "pid":        pid,
+        "tqty":       entry.TotalQty,
+        "price":      entry.Price,
+        "apartments": apartmentList,
+    })
+}
+
+
+    resp := map[string]interface{}{
+        "date":   dateStr,
+        "sales":  output,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(resp)
 }

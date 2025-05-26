@@ -13,40 +13,54 @@ import (
 
 var (
 	DB   *sql.DB
-	once sync.Once // Ensures ConnectDatabase is only called once
+	once sync.Once
 )
 
-// ConnectDatabase initializes the database connection only once
+// ConnectDatabase connects to the appropriate DB depending on APP_MODE
 func ConnectDatabase() error {
 	var err error
 
 	once.Do(func() {
-		// Load environment variables only once
+		// Load environment variables
 		if err = godotenv.Load("../.env"); err != nil {
-			log.Printf("Warning: Could not load .env file, using system environment variables")
+			log.Println("⚠️  Could not load .env file, using system environment variables")
 		}
 
-	dbUser := os.Getenv("dbUser")       // Change if needed
-	dbPassword :=os.Getenv("dbPassword") // Change this to your actual password
-	dbName := os.Getenv("dbName")
-	dbHost := os.Getenv("dbHost")
-	dbPort := os.Getenv("dbPort")
-	
+		appMode := os.Getenv("APP_ENV")
+		log.Println(appMode)
+		var connStr string
 
-		// PostgreSQL connection string
-		connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
-			dbUser, dbPassword, dbName, dbHost, dbPort)
+		if appMode == "production" {
+			// Use Supabase DATABASE_URL
+			databaseURL := os.Getenv("DATABASE_URL")
+			if databaseURL == "" {
+				err = fmt.Errorf("DATABASE_URL is not set in production mode")
+				log.Fatal(err)
+				return
+			}
+			connStr = databaseURL
+			log.Println("🌐 Using Supabase production database")
+		} else {
+			// Use local development environment variables
+			dbUser := os.Getenv("dbUser")
+			dbPassword := os.Getenv("dbPassword")
+			dbName := os.Getenv("dbName")
+			dbHost := os.Getenv("dbHost")
+			dbPort := os.Getenv("dbPort")
 
-		// Open database connection
+			connStr = fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=disable",
+				dbUser, dbPassword, dbName, dbHost, dbPort)
+
+			log.Println("🧪 Using local development database")
+		}
+
 		DB, err = sql.Open("postgres", connStr)
 		if err != nil {
-			log.Fatalf("❌ Failed to connect to the database: %v", err)
+			log.Fatalf("❌ Failed to open database: %v", err)
 		}
 
-		// Verify connection
-		err = DB.Ping()
-		if err != nil {
-			log.Fatalf("❌ Database is not responding: %v", err)
+		if err = DB.Ping(); err != nil {
+			log.Fatalf("❌ Failed to ping database: %v", err)
 		}
 
 		log.Println("✅ Connected to PostgreSQL database successfully!")

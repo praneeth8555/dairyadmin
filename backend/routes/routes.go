@@ -27,23 +27,25 @@ func RegisterRoutes(router *mux.Router) {
 	router.HandleFunc("/apartcustomers", handlers.GetApartCustomers).Methods("GET")
 	router.HandleFunc("/customers", handlers.CreateCustomer).Methods("POST")
 	router.HandleFunc("/customers/{id}", handlers.UpdateCustomer).Methods("PUT")
-	router.HandleFunc("/update-priorities", handlers.UpdateCustomerPriorities).Methods("PUT")
+	//router.HandleFunc("/update-priorities", handlers.UpdateCustomerPriorities).Methods("PUT")
 
 	router.HandleFunc("/customers/{id}", handlers.DeleteCustomer).Methods("DELETE")
 
 	router.HandleFunc("/bulkcustomers", handlers.CreatebulkCustomers).Methods("POST")
 
-	router.HandleFunc("/customers/{id}/default-order", handlers.CreateDefaultOrder).Methods("POST")
-	router.HandleFunc("/customers/{id}/default-order", handlers.UpdateDefaultOrder).Methods("PUT")
-	router.HandleFunc("/customers/{id}/default-order", handlers.GetDefaultOrder).Methods("GET")
+	router.HandleFunc("/customers/{id}/default-order", handlers.CreateDefaultOrderUnified).Methods("POST")
+	router.HandleFunc("/customers/{id}/default-order", handlers.UpdateDefaultOrderUnified).Methods("PUT")
+	router.HandleFunc("/customers/{id}/default-order", handlers.GetDefaultOrderUnified).Methods("GET")
 
 	router.HandleFunc("/orders", handlers.GetOrders).Methods("GET")       // Fetch orders for a month
 	router.HandleFunc("/orders/modify", handlers.ModifyOrder).Methods("POST")  // Modify an order
 	router.HandleFunc("/orders/pause", handlers.PauseOrder).Methods("POST")    // Pause an order
 	router.HandleFunc("/orders/resume", handlers.ResumeOrder).Methods("POST")
+	router.HandleFunc("/orders/modify-alternating",handlers.ModifyAlternatingOrder).Methods("POST")
 
 	router.HandleFunc("/daily-summary", handlers.GetDailyOrderSummary).Methods("GET")
 	router.HandleFunc("/daily-totalsummary", handlers.GetDailyTotalSummary).Methods("GET")
+	router.HandleFunc("/daily-SalesSummary", handlers.GetDailySalesSummary).Methods("GET")
 
 	router.HandleFunc("/monthly-bill", handlers.GetMonthlyBill).Methods("GET")
 	

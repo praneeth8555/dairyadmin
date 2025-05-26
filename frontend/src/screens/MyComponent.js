@@ -2,7 +2,9 @@ import React from 'react';
 import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
-const MyComponent = ({ products, selectedProduct, setSelectedProduct, selectedQuantity, setSelectedQuantity }) => {
+const MyComponent = ({ products, selectedProduct, setSelectedProduct, selectedQuantity, setSelectedQuantity, isAlternatingOrder,
+    selectedDayType,
+    setSelectedDayType }) => {
     const productOptions = products.map((product) => ({
         value: product.product_id,
         label: product.product_name+" ("+product.unit+")",
@@ -12,6 +14,11 @@ const MyComponent = ({ products, selectedProduct, setSelectedProduct, selectedQu
         value: num + 1,
         label: (num + 1).toString(),
     }));
+
+    const dayTypeOptions = [
+        { value: "ODD", label: "ODD" },
+        { value: "EVEN", label: "EVEN" },
+    ];
 
     return (
         <div>
@@ -34,6 +41,16 @@ const MyComponent = ({ products, selectedProduct, setSelectedProduct, selectedQu
                 options={quantityOptions}
                 styles={{ marginTop: '10px' }}
             />
+
+            {isAlternatingOrder && (
+                <Select
+                    placeholder="Select Day Type"
+                    value={dayTypeOptions.find((option) => option.value === selectedDayType)}
+                    onChange={(option) => setSelectedDayType(option.value)}
+                    options={dayTypeOptions}
+                    styles={{ marginTop: '10px' }}
+                />
+            )}
         </div>
     );
 };
