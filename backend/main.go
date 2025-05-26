@@ -75,7 +75,7 @@ func main() {
 	
 
 	// Start server
-	port := ":8080"
+	port := ":8081"
 	// fmt.Println("🚀 Server running on http://localhost" + port)
 	fmt.Println("🚀 Server running on http://0.0.0.0" + port)
 	log.Fatal(http.ListenAndServe(port, handlerWithCORS))
