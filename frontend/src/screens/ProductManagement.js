@@ -103,9 +103,9 @@ const ProductManagement = () => {
     };
 
     const addProduct = async () => {
-        if (!newProduct.name || !newProduct.unit || !newProduct.price || !newProduct.image || !newProduct.acronym) {
+        if (!newProduct.name || !newProduct.unit || !newProduct.price || !newProduct.acronym) {
             toast({
-                title: "All fields are required",
+                title: "All required fields must be filled",
                 status: "error",
                 duration: 5000,
                 isClosable: true,
@@ -114,16 +114,20 @@ const ProductManagement = () => {
         }
 
         try {
-            const imageUrl = await postDetails(newProduct.image);
-            console.log(newProduct)
+            let imageUrl = "";
+            if (newProduct.image) {
+                imageUrl = await postDetails(newProduct.image);
+            }
+
             await axios.post(`${CONFIG.API_BASE_URL}/products`, {
                 product_name: newProduct.name,
                 unit: newProduct.unit,
                 current_price: parseFloat(newProduct.price),
                 image_url: imageUrl,
-                acronym: newProduct.acronym
+                acronym: newProduct.acronym,
             });
-            setNewProduct({ name: "", unit: "", price: "", image: null,acronym:"" });
+
+            setNewProduct({ name: "", unit: "", price: "", image: null, acronym: "" });
             fetchProducts();
             onClose();
             toast({
@@ -136,11 +140,12 @@ const ProductManagement = () => {
             console.error("Error adding product", error);
         }
     };
+    
 
     const editProductDetails = async () => {
         if (!editProduct.product_name || !editProduct.unit || !editProduct.current_price || !editProduct.acronym) {
             toast({
-                title: "All fields are required",
+                title: "All required fields must be filled",
                 status: "error",
                 duration: 5000,
                 isClosable: true,
@@ -149,20 +154,19 @@ const ProductManagement = () => {
         }
 
         try {
-            let imageUrl = editProduct.image_url;
+            let imageUrl = editProduct.image_url || "";
 
-            // If a new image is provided, upload it
             if (editProduct.image) {
                 imageUrl = await postDetails(editProduct.image);
             }
-            // console.log(editProduct)
+
             await axios.put(`${CONFIG.API_BASE_URL}/products/${editProduct.product_id}`, {
                 product_name: editProduct.product_name,
                 unit: editProduct.unit,
                 current_price: parseFloat(editProduct.current_price),
                 image_url: imageUrl,
                 effective_from: editProduct.effectiveFrom,
-                acronym: editProduct.acronym
+                acronym: editProduct.acronym,
             });
 
             fetchProducts();
@@ -177,6 +181,7 @@ const ProductManagement = () => {
             console.error("Error editing product", error);
         }
     };
+    
 
     const deleteProduct = async (id) => {
         const confirmDelete = window.confirm("Are you sure you want to delete this product?");
